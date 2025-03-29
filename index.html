@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trail Map Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        .image-popup-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90vh;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .image-popup img {
+            max-width: 100%;
+            max-height: 70vh;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .image-popup .notes {
+            margin-top: 15px;
+            color: #2c3e50;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .thumbnail {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .thumbnail:hover {
+            border-color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="page-title">Loading...</h1>
+        <div id="map"></div>
+    </div>
+
+    <div id="image-popup" class="image-popup">
+        <div class="image-popup-content">
+            <img id="popup-image" src="" alt="Trail Image">
+            <div id="popup-notes" class="notes"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map;
+        let settings;
+
+        // Initialize the map and load settings
+        async function initialize() {
+            try {
+                const response = await fetch('walk_settings.json');
+                settings = await response.json();
+                
+                document.getElementById('page-title').textContent = settings.title;
+                
+                map = L.map('map').setView(settings.mapRegion.center, settings.mapRegion.zoom);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+
+                // Draw the trail path
+                L.polyline(settings.trailPath, {
+                    color: '#3498db',
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(map);
+
+                // Add image markers
+                settings.images.forEach(image => {
+                    const marker = L.marker(image.coordinates);
+                    const img = document.createElement('img');
+                    img.src = image.imageName;
+                    img.className = 'thumbnail';
+                    img.onclick = () => showImagePopup(image);
+                    
+                    marker.bindPopup(img);
+                    marker.addTo(map);
+                });
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        function showImagePopup(image) {
+            const popup = document.getElementById('image-popup');
+            const popupImage = document.getElementById('popup-image');
+            const popupNotes = document.getElementById('popup-notes');
+            
+            popupImage.src = image.imageName;
+            popupNotes.textContent = image.notes;
+            popup.style.display = 'block';
+        }
+
+        // Close popup when clicking anywhere
+        document.getElementById('image-popup').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
+            }
+        });
+
+        // Initialize when the page loads
+        window.addEventListener('load', initialize);
+    </script>
+</body>
+</html> 
