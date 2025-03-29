@@ -29,6 +29,13 @@ if lsof -i :$PORT >/dev/null 2>&1; then
     exit 1
 fi
 
+# Stop and remove existing container if it exists
+if docker container inspect mapapp >/dev/null 2>&1; then
+    echo "Stopping and removing existing mapapp container..."
+    docker stop mapapp >/dev/null 2>&1
+    docker rm mapapp
+fi
+
 # Run the container
 docker run -d -p $PORT:80 --name mapapp mapapp
 

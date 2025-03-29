@@ -1,0 +1,27 @@
+{
+    "title": "Scenic Mountain Trail",
+    "trailPath": [
+        [47.6062, -122.3321],
+        [47.6075, -122.3310],
+        [47.6088, -122.3299],
+        [47.6101, -122.3288],
+        [47.6114, -122.3277]
+    ],
+    "images": [
+        {
+            "coordinates": [47.6062, -122.3321],
+            "imageName": "trail_start.jpg",
+            "notes": "Starting point of the trail with beautiful mountain views"
+        },
+        {
+            "coordinates": [47.6088, -122.3299],
+            "imageName": "viewpoint.jpg",
+            "notes": "Scenic viewpoint overlooking the valley"
+        },
+        {
+            "coordinates": [47.6114, -122.3277],
+            "imageName": "waterfall.jpg",
+            "notes": "Cascading waterfall along the trail"
+        }
+    ]
+} 

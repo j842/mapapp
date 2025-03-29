@@ -71,17 +71,32 @@
             line-height: 1.5;
         }
 
-        .thumbnail {
+        .thumbnail-marker {
             width: 50px;
             height: 50px;
             border-radius: 5px;
             cursor: pointer;
             border: 2px solid white;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .thumbnail:hover {
-            border-color: #3498db;
+        .thumbnail-marker:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .custom-icon {
+            background: none;
+            border: none;
+        }
+
+        .custom-icon img {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
@@ -103,6 +118,80 @@
         let map;
         let settings;
 
+        // Function to calculate offset coordinates
+        function getOffsetCoordinates(coords, trailPath) {
+            // Find the closest point on the trail
+            let minDist = Infinity;
+            let closestIndex = 0;
+            
+            for (let i = 0; i < trailPath.length - 1; i++) {
+                const dist = getDistanceToLine(coords, trailPath[i], trailPath[i + 1]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestIndex = i;
+                }
+            }
+
+            // Calculate the direction vector of the trail segment
+            const dx = trailPath[closestIndex + 1][1] - trailPath[closestIndex][1];
+            const dy = trailPath[closestIndex + 1][0] - trailPath[closestIndex][0];
+            const length = Math.sqrt(dx * dx + dy * dy);
+
+            // Normalize the direction vector
+            const nx = dx / length;
+            const ny = dy / length;
+
+            // Calculate perpendicular vector (rotate 90 degrees)
+            const px = -ny;
+            const py = nx;
+
+            // Offset by 0.0002 degrees (approximately 20 meters)
+            return [
+                coords[0] + py * 0.0002,
+                coords[1] + px * 0.0002
+            ];
+        }
+
+        // Function to calculate distance from point to line segment
+        function getDistanceToLine(point, lineStart, lineEnd) {
+            const dx = lineEnd[1] - lineStart[1];
+            const dy = lineEnd[0] - lineStart[0];
+            const length = Math.sqrt(dx * dx + dy * dy);
+
+            if (length === 0) {
+                return Math.sqrt(
+                    Math.pow(point[0] - lineStart[0], 2) +
+                    Math.pow(point[1] - lineStart[1], 2)
+                );
+            }
+
+            const t = ((point[0] - lineStart[0]) * dy + (point[1] - lineStart[1]) * dx) / (length * length);
+            
+            if (t < 0) {
+                return Math.sqrt(
+                    Math.pow(point[0] - lineStart[0], 2) +
+                    Math.pow(point[1] - lineStart[1], 2)
+                );
+            }
+            
+            if (t > 1) {
+                return Math.sqrt(
+                    Math.pow(point[0] - lineEnd[0], 2) +
+                    Math.pow(point[1] - lineEnd[1], 2)
+                );
+            }
+
+            const projection = [
+                lineStart[0] + t * dy,
+                lineStart[1] + t * dx
+            ];
+
+            return Math.sqrt(
+                Math.pow(point[0] - projection[0], 2) +
+                Math.pow(point[1] - projection[1], 2)
+            );
+        }
+
         // Initialize the map and load settings
         async function initialize() {
             try {
@@ -111,28 +200,48 @@
                 
                 document.getElementById('page-title').textContent = settings.title;
                 
-                map = L.map('map').setView(settings.mapRegion.center, settings.mapRegion.zoom);
+                // Create the map
+                map = L.map('map');
                 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
                 }).addTo(map);
 
                 // Draw the trail path
-                L.polyline(settings.trailPath, {
+                const trailLine = L.polyline(settings.trailPath, {
                     color: '#3498db',
                     weight: 4,
                     opacity: 0.8
                 }).addTo(map);
 
+                // Calculate bounds from the trail path coordinates
+                const bounds = L.latLngBounds(settings.trailPath);
+                
+                // Add 20% buffer to the bounds
+                const bufferedBounds = bounds.pad(0.2);
+                
+                // Fit the map to the buffered bounds
+                map.fitBounds(bufferedBounds);
+
                 // Add image markers
                 settings.images.forEach(image => {
-                    const marker = L.marker(image.coordinates);
-                    const img = document.createElement('img');
-                    img.src = image.imageName;
-                    img.className = 'thumbnail';
-                    img.onclick = () => showImagePopup(image);
+                    // Calculate offset coordinates to avoid overlapping with trail
+                    const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath);
                     
-                    marker.bindPopup(img);
+                    // Create custom icon
+                    const customIcon = L.divIcon({
+                        className: 'custom-icon',
+                        html: `<img src="images/${image.imageName}" alt="Trail Image">`,
+                        iconSize: [50, 50],
+                        iconAnchor: [25, 25]
+                    });
+
+                    // Create marker with custom icon
+                    const marker = L.marker(offsetCoords, { icon: customIcon });
+                    
+                    // Add click handler
+                    marker.on('click', () => showImagePopup(image));
+                    
                     marker.addTo(map);
                 });
             } catch (error) {
@@ -145,7 +254,7 @@
             const popupImage = document.getElementById('popup-image');
             const popupNotes = document.getElementById('popup-notes');
             
-            popupImage.src = image.imageName;
+            popupImage.src = `images/${image.imageName}`;
             popupNotes.textContent = image.notes;
             popup.style.display = 'block';
         }
