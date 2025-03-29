@@ -161,7 +161,7 @@
         let coordinatesPopup;
 
         // Function to calculate offset coordinates
-        function getOffsetCoordinates(coords, trailPath) {
+        function getOffsetCoordinates(coords, trailPath, existingMarkers = []) {
             // Find the closest point on the trail
             let minDist = Infinity;
             let closestIndex = 0;
@@ -174,9 +174,25 @@
                 }
             }
 
-            // Calculate the direction vector of the trail segment
-            const dx = trailPath[closestIndex + 1][1] - trailPath[closestIndex][1];
-            const dy = trailPath[closestIndex + 1][0] - trailPath[closestIndex][0];
+            // Calculate the overall direction using 5% of the trail length
+            const trailLength = trailPath.length;
+            const segmentCount = Math.max(1, Math.floor(trailLength * 0.05)); // 5% of trail length
+            let dx = 0, dy = 0;
+            let count = 0;
+
+            // Look at segments before and after the closest point
+            const startIndex = Math.max(0, closestIndex - Math.floor(segmentCount / 2));
+            const endIndex = Math.min(trailLength - 1, startIndex + segmentCount);
+
+            for (let i = startIndex; i < endIndex; i++) {
+                dx += trailPath[i + 1][1] - trailPath[i][1];
+                dy += trailPath[i + 1][0] - trailPath[i][0];
+                count++;
+            }
+
+            // Calculate average direction vector
+            dx /= count;
+            dy /= count;
             const length = Math.sqrt(dx * dx + dy * dy);
 
             // Normalize the direction vector
@@ -187,10 +203,35 @@
             const px = -ny;
             const py = nx;
 
-            // Offset by 0.0005 degrees (approximately 50 meters)
+            // Base offset distance (approximately 50 meters)
+            const baseOffset = 0.0005;
+
+            // Try different offset positions until we find one that doesn't overlap
+            for (let offset = 0; offset < 5; offset++) {
+                const testCoords = [
+                    coords[0] + py * baseOffset * (offset + 1),
+                    coords[1] + px * baseOffset * (offset + 1)
+                ];
+
+                // Check if this position overlaps with any existing markers
+                let overlaps = false;
+                for (const marker of existingMarkers) {
+                    const dist = getDistanceToLine(testCoords, marker.coords, marker.coords);
+                    if (dist < 0.0003) { // Approximately 30 meters minimum distance
+                        overlaps = true;
+                        break;
+                    }
+                }
+
+                if (!overlaps) {
+                    return testCoords;
+                }
+            }
+
+            // If we couldn't find a non-overlapping position, return the base offset
             return [
-                coords[0] + py * 0.0005,
-                coords[1] + px * 0.0005
+                coords[0] + py * baseOffset,
+                coords[1] + px * baseOffset
             ];
         }
 
@@ -374,8 +415,8 @@
                     "Hybrid": hybridLayer
                 };
 
-                // Add default layer
-                osmLayer.addTo(map);
+                // Add default layer (hybrid)
+                hybridLayer.addTo(map);
 
                 // Add layer control to map
                 L.control.layers(baseMaps, null, {
@@ -420,9 +461,17 @@
 
                 // Only add image markers if we have images in the settings
                 if (settings.images && settings.images.length > 0) {
+                    // Keep track of existing markers to prevent overlaps
+                    const existingMarkers = [];
+
                     settings.images.forEach(image => {
-                        // Calculate offset coordinates to avoid overlapping with trail
-                        const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath);
+                        // Calculate offset coordinates to avoid overlapping with trail and other markers
+                        const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath, existingMarkers);
+                        
+                        // Add this marker to the list of existing markers
+                        existingMarkers.push({
+                            coords: offsetCoords
+                        });
                         
                         // Create custom icon for thumbnail
                         const thumbnailIcon = L.divIcon({
