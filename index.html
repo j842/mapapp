@@ -117,6 +117,28 @@
         .arrow-head {
             fill: #e74c3c;
         }
+
+        .coordinates-popup {
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .coordinates-popup button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 5px;
+            font-size: 12px;
+        }
+
+        .coordinates-popup button:hover {
+            background-color: #2980b9;
+        }
     </style>
 </head>
 <body>
@@ -136,6 +158,7 @@
     <script>
         let map;
         let settings;
+        let coordinatesPopup;
 
         // Function to calculate offset coordinates
         function getOffsetCoordinates(coords, trailPath) {
@@ -282,6 +305,45 @@
             }
         }
 
+        // Function to format coordinates
+        function formatCoordinates(lat, lng) {
+            return `[${lat.toFixed(6)}, ${lng.toFixed(6)}]`;
+        }
+
+        // Function to copy coordinates to clipboard
+        function copyCoordinates(lat, lng) {
+            const coords = formatCoordinates(lat, lng);
+            navigator.clipboard.writeText(coords).then(() => {
+                const button = coordinatesPopup.getElement().querySelector('button');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        // Function to show coordinates popup
+        function showCoordinatesPopup(e) {
+            const coords = formatCoordinates(e.latlng.lat, e.latlng.lng);
+            const content = `
+                <div class="coordinates-popup">
+                    <div>${coords}</div>
+                    <button onclick="copyCoordinates(${e.latlng.lat}, ${e.latlng.lng})">Copy coordinates</button>
+                </div>
+            `;
+            
+            if (coordinatesPopup) {
+                coordinatesPopup.setLatLng(e.latlng);
+                coordinatesPopup.setContent(content);
+            } else {
+                coordinatesPopup = L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(content)
+                    .addTo(map);
+            }
+        }
+
         // Initialize the map and load settings
         async function initialize() {
             try {
@@ -292,8 +354,32 @@
                 // Create the map
                 map = L.map('map');
                 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                // Define map layers
+                const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
+                });
+
+                const satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                    attribution: '© Google'
+                });
+
+                const hybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    attribution: '© Google'
+                });
+
+                // Add layer control
+                const baseMaps = {
+                    "OpenStreetMap": osmLayer,
+                    "Satellite": satelliteLayer,
+                    "Hybrid": hybridLayer
+                };
+
+                // Add default layer
+                osmLayer.addTo(map);
+
+                // Add layer control to map
+                L.control.layers(baseMaps, null, {
+                    collapsed: false
                 }).addTo(map);
 
                 // Draw the trail path
@@ -302,6 +388,26 @@
                     weight: 4,
                     opacity: 0.8
                 }).addTo(map);
+
+                // Add right-click handler for coordinates
+                map.on('contextmenu', function(e) {
+                    const coords = formatCoordinates(e.latlng.lat, e.latlng.lng);
+                    const content = `
+                        <div class="coordinates-popup">
+                            <div>${coords}</div>
+                            <button onclick="copyCoordinates(${e.latlng.lat}, ${e.latlng.lng})">Copy coordinates</button>
+                        </div>
+                    `;
+                    
+                    if (coordinatesPopup) {
+                        coordinatesPopup.remove();
+                    }
+                    
+                    coordinatesPopup = L.popup()
+                        .setLatLng(e.latlng)
+                        .setContent(content)
+                        .addTo(map);
+                });
 
                 // Calculate bounds from the trail path coordinates
                 const bounds = L.latLngBounds(settings.trailPath);
