@@ -55,14 +55,14 @@ if docker container inspect mapapp >/dev/null 2>&1; then
 fi
 
 # Check for LINZ API key
-if [ -z "$LINZ_API_KEY" ]; then
-    echo "Error: LINZ_API_KEY environment variable is not set"
-    echo "Please set it before running this script, e.g.:"
-    echo "export LINZ_API_KEY=your-key-here"
-    echo "or"
-    echo "LINZ_API_KEY=your-key-here ./run.sh"
-    exit 1
-fi
+#if [ -z "$LINZ_API_KEY" ]; then
+    # echo "Error: LINZ_API_KEY environment variable is not set"
+    # echo "Please set it before running this script, e.g.:"
+    # echo "export LINZ_API_KEY=your-key-here"
+    # echo "or"
+    # echo "LINZ_API_KEY=your-key-here ./run.sh"
+    # exit 1
+#fi
 
 # Run the container with the data directory mounted and LINZ API key
 docker run -d \

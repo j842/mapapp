@@ -1,16 +1,17 @@
 #!/bin/sh
+set -e
 
-# Check for required environment variables
-if [ -z "$LINZ_API_KEY" ]; then
-    echo "Error: LINZ_API_KEY environment variable is not set"
-    echo "Please set it when running the container, e.g.:"
-    echo "docker run -e LINZ_API_KEY=your-key-here ..."
-    exit 1
+# Ensure logs directory exists
+mkdir -p /var/log/nginx
+
+# Test direct connection to LINZ API
+echo "Testing LINZ API connection directly from container..."
+if which curl > /dev/null; then
+  curl -s -I "https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/1/1/1.webp?api=d01jrm3t2gzdycm5j8rh03e69fw" || echo "LINZ API test failed"
+else
+  echo "curl not installed, skipping API test"
 fi
 
-# Substitute environment variables in index.html
-envsubst < /usr/share/nginx/html/index.html > /usr/share/nginx/html/index.html.tmp
-mv /usr/share/nginx/html/index.html.tmp /usr/share/nginx/html/index.html
-
-# Start nginx in foreground mode
-exec nginx -g "daemon off;" 
+# Start Nginx
+echo "Starting Nginx..."
+exec nginx -g 'daemon off;' 

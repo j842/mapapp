@@ -408,8 +408,56 @@
                     attribution: '© Google'
                 });
 
+                // Add LINZ imagery layer (direct connection)
+                const linzLayer = L.tileLayer('https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api=d01jrm3t2gzdycm5j8rh03e69fw', {
+                    attribution: '© <a href="//www.linz.govt.nz/linz-copyright">LINZ CC BY 4.0</a> © <a href="//www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution">Imagery Basemap contributors</a>',
+                    maxZoom: 19,
+                    bounds: [[-47.5, 166.5], [-34.0, 178.5]], // New Zealand bounds
+                    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', // Transparent tile fallback
+                    crossOrigin: true,
+                    keepBuffer: 4,
+                    updateWhenIdle: false,
+                    updateWhenZooming: false
+                });
+                
+                // Add debugging for LINZ layer
+                linzLayer.on('tileerror', function(error) {
+                    console.error('LINZ tile error:', error.tile.src);
+                    
+                    // Check if we're in NZ bounds - if not, this is expected
+                    if (error.coords) {
+                        const point = map.project(L.latLng(error.coords.y, error.coords.x), error.coords.z);
+                        const nwPoint = map.project(L.latLng(-34.0, 166.5), error.coords.z);
+                        const sePoint = map.project(L.latLng(-47.5, 178.5), error.coords.z);
+                        
+                        // Check if the tile is within NZ bounds
+                        const inNZ = point.x >= nwPoint.x && 
+                                    point.x <= sePoint.x && 
+                                    point.y >= nwPoint.y && 
+                                    point.y <= sePoint.y;
+                                    
+                        if (!inNZ) {
+                            console.log('Tile outside of New Zealand bounds - expected to fail');
+                            return;
+                        }
+                    }
+                    
+                    // For tiles within NZ that failed, we might want to retry once with a delay
+                    if (!error.tile._retryCount || error.tile._retryCount < 1) {
+                        error.tile._retryCount = (error.tile._retryCount || 0) + 1;
+                        setTimeout(function() {
+                            error.tile.src = error.tile.src.replace(/\?t=\d+/, '') + '?t=' + new Date().getTime();
+                        }, 1000);
+                    }
+                });
+                
+                linzLayer.on('tileload', function(tile) {
+                    console.log('LINZ tile loaded successfully', tile.coords);
+                });
+
                 // Add layer control
                 const baseMaps = {
+                    "LINZ Aerial": linzLayer,
                     "OpenStreetMap": osmLayer,
                     "Satellite": satelliteLayer,
                     "Hybrid": hybridLayer
