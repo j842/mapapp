@@ -98,6 +98,25 @@
             border: 2px solid white;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
+
+        .location-marker {
+            width: 8px;
+            height: 8px;
+            background-color: #e74c3c;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .arrow-line {
+            stroke: #e74c3c;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .arrow-head {
+            fill: #e74c3c;
+        }
     </style>
 </head>
 <body>
@@ -145,10 +164,10 @@
             const px = -ny;
             const py = nx;
 
-            // Offset by 0.0002 degrees (approximately 20 meters)
+            // Offset by 0.0005 degrees (approximately 50 meters)
             return [
-                coords[0] + py * 0.0002,
-                coords[1] + px * 0.0002
+                coords[0] + py * 0.0005,
+                coords[1] + px * 0.0005
             ];
         }
 
@@ -192,11 +211,81 @@
             );
         }
 
+        // Function to create SVG arrow
+        function createArrow(start, end) {
+            const dx = end[1] - start[1];
+            const dy = end[0] - start[0];
+            const angle = Math.atan2(dy, dx);
+            
+            return {
+                line: [start, end],
+                angle: angle * 180 / Math.PI
+            };
+        }
+
+        // Function to parse GPX file
+        async function parseGPX(gpxText) {
+            const parser = new DOMParser();
+            const gpxDoc = parser.parseFromString(gpxText, 'text/xml');
+            const trackPoints = gpxDoc.getElementsByTagName('trkpt');
+            
+            // Extract coordinates from GPX
+            const trailPath = Array.from(trackPoints).map(point => [
+                parseFloat(point.getAttribute('lat')),
+                parseFloat(point.getAttribute('lon'))
+            ]);
+
+            return {
+                title: gpxDoc.getElementsByTagName('name')[0]?.textContent || 'Trail Map',
+                trailPath: trailPath
+            };
+        }
+
+        // Function to load settings from JSON and GPX files
+        async function loadSettings() {
+            try {
+                let settings = {
+                    title: 'Trail Map',
+                    trailPath: [],
+                    images: []
+                };
+
+                // Try to load GPX file for trail path
+                const gpxResponse = await fetch('data/trail.gpx');
+                if (gpxResponse.ok) {
+                    const gpxText = await gpxResponse.text();
+                    const gpxData = await parseGPX(gpxText);
+                    settings.trailPath = gpxData.trailPath;
+                    settings.title = gpxData.title;
+                }
+
+                // Try to load JSON file for images and title (if no GPX title)
+                const jsonResponse = await fetch('data/walk_settings.json');
+                if (jsonResponse.ok) {
+                    const jsonData = await jsonResponse.json();
+                    settings.images = jsonData.images || [];
+                    // Only use JSON title if we don't have a GPX title
+                    if (!settings.trailPath.length) {
+                        settings.title = jsonData.title;
+                    }
+                }
+
+                // Validate that we have at least a trail path
+                if (!settings.trailPath.length) {
+                    throw new Error('No trail path found in either GPX or JSON file');
+                }
+
+                return settings;
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                throw error;
+            }
+        }
+
         // Initialize the map and load settings
         async function initialize() {
             try {
-                const response = await fetch('walk_settings.json');
-                settings = await response.json();
+                settings = await loadSettings();
                 
                 document.getElementById('page-title').textContent = settings.title;
                 
@@ -223,29 +312,50 @@
                 // Fit the map to the buffered bounds
                 map.fitBounds(bufferedBounds);
 
-                // Add image markers
-                settings.images.forEach(image => {
-                    // Calculate offset coordinates to avoid overlapping with trail
-                    const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath);
-                    
-                    // Create custom icon
-                    const customIcon = L.divIcon({
-                        className: 'custom-icon',
-                        html: `<img src="images/${image.imageName}" alt="Trail Image">`,
-                        iconSize: [50, 50],
-                        iconAnchor: [25, 25]
-                    });
+                // Only add image markers if we have images in the settings
+                if (settings.images && settings.images.length > 0) {
+                    settings.images.forEach(image => {
+                        // Calculate offset coordinates to avoid overlapping with trail
+                        const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath);
+                        
+                        // Create custom icon for thumbnail
+                        const thumbnailIcon = L.divIcon({
+                            className: 'custom-icon',
+                            html: `<img src="data/images/${image.imageName}" alt="Trail Image">`,
+                            iconSize: [50, 50],
+                            iconAnchor: [25, 25]
+                        });
 
-                    // Create marker with custom icon
-                    const marker = L.marker(offsetCoords, { icon: customIcon });
-                    
-                    // Add click handler
-                    marker.on('click', () => showImagePopup(image));
-                    
-                    marker.addTo(map);
-                });
+                        // Create marker for thumbnail
+                        const thumbnailMarker = L.marker(offsetCoords, { icon: thumbnailIcon });
+                        
+                        // Create marker for actual location
+                        const locationMarker = L.marker(image.coordinates, {
+                            icon: L.divIcon({
+                                className: 'location-marker',
+                                iconSize: [12, 12],
+                                iconAnchor: [6, 6]
+                            })
+                        });
+
+                        // Create line from thumbnail to location
+                        const connectionLine = L.polyline([offsetCoords, image.coordinates], {
+                            color: '#e74c3c',
+                            weight: 2,
+                            opacity: 0.8
+                        });
+                        
+                        // Add click handler to thumbnail
+                        thumbnailMarker.on('click', () => showImagePopup(image));
+                        
+                        // Add all elements to the map
+                        locationMarker.addTo(map);
+                        connectionLine.addTo(map);
+                        thumbnailMarker.addTo(map);
+                    });
+                }
             } catch (error) {
-                console.error('Error loading settings:', error);
+                console.error('Error initializing map:', error);
             }
         }
 
@@ -254,7 +364,7 @@
             const popupImage = document.getElementById('popup-image');
             const popupNotes = document.getElementById('popup-notes');
             
-            popupImage.src = `images/${image.imageName}`;
+            popupImage.src = `data/images/${image.imageName}`;
             popupNotes.textContent = image.notes;
             popup.style.display = 'block';
         }

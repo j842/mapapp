@@ -15,6 +15,24 @@ if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; th
     exit 1
 fi
 
+# Check if data directory exists
+if [ ! -d "data" ]; then
+    echo "Error: data directory not found"
+    exit 1
+fi
+
+# Check if images subdirectory exists
+if [ ! -d "data/images" ]; then
+    echo "Error: data/images directory not found"
+    exit 1
+fi
+
+# Check for either walk_settings.json or trail.gpx
+if [ ! -f "data/walk_settings.json" ] && [ ! -f "data/trail.gpx" ]; then
+    echo "Error: Neither walk_settings.json nor trail.gpx found in data directory"
+    exit 1
+fi
+
 echo "Starting mapapp container on port $PORT..."
 
 # Check if the image exists
@@ -36,8 +54,12 @@ if docker container inspect mapapp >/dev/null 2>&1; then
     docker rm mapapp
 fi
 
-# Run the container
-docker run -d -p $PORT:80 --name mapapp mapapp
+# Run the container with data directory mounted
+docker run -d \
+    -p $PORT:80 \
+    -v "$(pwd)/data:/usr/share/nginx/html/data" \
+    --name mapapp \
+    mapapp
 
 echo "Container started successfully!"
 echo "The web application is available at: http://localhost:$PORT"

@@ -5,8 +5,6 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy our web content
 COPY index.html /usr/share/nginx/html/
-COPY data/walk_settings.json /usr/share/nginx/html/
-COPY data/*.jpg /usr/share/nginx/html/images/
 
 # Expose port 80
 EXPOSE 80
