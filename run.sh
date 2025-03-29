@@ -54,10 +54,10 @@ if docker container inspect mapapp >/dev/null 2>&1; then
     docker rm mapapp
 fi
 
-# Run the container with data directory mounted
+# Run the container with the data directory mounted
 docker run -d \
     -p $PORT:80 \
-    -v "$(pwd)/data:/usr/share/nginx/html/data" \
+    -v "$(pwd)/data:/data" \
     --name mapapp \
     mapapp
 
