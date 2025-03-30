@@ -16,8 +16,8 @@ fi
 
 # Read and increment version
 VERSION=$(cat $VERSION_FILE)
-NEXT_VERSION=$((VERSION + 1))
-echo $NEXT_VERSION > $VERSION_FILE
+VERSION=$((VERSION + 1))
+echo $VERSION > $VERSION_FILE
 
 echo "Building mapapp Docker image version $VERSION..."
 
