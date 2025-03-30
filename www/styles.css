@@ -542,8 +542,8 @@ body, html {
 
 .image-number {
     position: absolute;
-    top: -5px;
-    right: -5px;
+    top: -10px;
+    left: -10px;
     width: 20px;
     height: 20px;
     background-color: #3498db;
