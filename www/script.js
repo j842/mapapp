@@ -4,6 +4,13 @@ let coordinatesPopup;
 let currentImageIndex = -1;
 let imagesArray = [];
 let currentWalkId = null;
+let siteConfig = {
+    siteName: "Trail Map Viewer",
+    siteTitle: "Trail Map Collection",
+    theme: {
+        mainBackground: "#ffffff"
+    }
+};
 
 // Function to calculate offset coordinates
 function getOffsetCoordinates(coords, trailPath, existingMarkers = []) {
@@ -601,357 +608,428 @@ function hideFullscreenPopup() {
     fullscreenPopup.style.display = 'none';
 }
 
-// Initialize the map and load settings
-async function initialize() {
-    try {
-        settings = await loadSettings();
-        
-        document.getElementById('page-title').textContent = settings.title;
-        
-        // Create the map
-        map = L.map('map');
-        
-        // Define map layers
-        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        });
+// Function to setup the map with trail path and markers
+function setupMap() {
+    // Create the map
+    map = L.map('map');
+    
+    // Define map layers
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    });
 
-        const satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-            attribution: '© Google'
-        });
+    const satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        attribution: '© Google'
+    });
 
-        const hybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-            attribution: '© Google'
-        });
+    const hybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '© Google'
+    });
 
-        // Add LINZ imagery layer (direct connection with enhanced error handling)
-        const linzApiKey = 'LINZ_API_KEY_PLACEHOLDER';
-        const linzDemoKey = 'd01jrm3t2gzdycm5j8rh03e69fw'; // Demo key as fallback
+    // Add LINZ imagery layer (direct connection with enhanced error handling)
+    const linzApiKey = 'LINZ_API_KEY_PLACEHOLDER';
+    const linzDemoKey = 'd01jrm3t2gzdycm5j8rh03e69fw'; // Demo key as fallback
+    
+    // Track errors to avoid repeated failures
+    const failedTiles = {};
+    
+    const linzLayer = L.tileLayer('https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api={api}', {
+        api: encodeURIComponent(linzApiKey),
+        attribution: '© <a href="//www.linz.govt.nz/linz-copyright">LINZ CC BY 4.0</a> © <a href="//www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution">Imagery Basemap contributors</a>',
+        maxZoom: 19,
+        bounds: [[-47.5, 166.5], [-34.0, 178.5]], // New Zealand bounds
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', // Transparent tile fallback
+        crossOrigin: true,
+        keepBuffer: 4,
+        updateWhenIdle: false,
+        updateWhenZooming: false
+    });
+    
+    // Enhance the tile loading to capture every response via fetch
+    const originalCreateTile = linzLayer.createTile;
+    linzLayer.createTile = function(coords, done) {
+        const key = `${coords.z}_${coords.x}_${coords.y}`;
         
-        // Track errors to avoid repeated failures
-        const failedTiles = {};
+        // Check if this tile has failed multiple times with primary key
+        if (failedTiles[key] && failedTiles[key].failures > 0) {
+            // Use demo key for previously failed tiles
+            this.options.api = encodeURIComponent(linzDemoKey);
+        } else {
+            // Use primary key
+            this.options.api = encodeURIComponent(linzApiKey);
+        }
         
-        const linzLayer = L.tileLayer('https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api={api}', {
-            api: encodeURIComponent(linzApiKey),
-            attribution: '© <a href="//www.linz.govt.nz/linz-copyright">LINZ CC BY 4.0</a> © <a href="//www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution">Imagery Basemap contributors</a>',
-            maxZoom: 19,
-            bounds: [[-47.5, 166.5], [-34.0, 178.5]], // New Zealand bounds
-            errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', // Transparent tile fallback
-            crossOrigin: true,
-            keepBuffer: 4,
-            updateWhenIdle: false,
-            updateWhenZooming: false
-        });
-        
-        // Enhance the tile loading to capture every response via fetch
-        const originalCreateTile = linzLayer.createTile;
-        linzLayer.createTile = function(coords, done) {
-            const key = `${coords.z}_${coords.x}_${coords.y}`;
-            
-            // Check if this tile has failed multiple times with primary key
-            if (failedTiles[key] && failedTiles[key].failures > 0) {
-                // Use demo key for previously failed tiles
-                this.options.api = encodeURIComponent(linzDemoKey);
-            } else {
-                // Use primary key
-                this.options.api = encodeURIComponent(linzApiKey);
+        const tile = originalCreateTile.call(this, coords, function(err, tile) {
+            if (err) {
+                console.error(`Tile error for ${key}: ${err}`);
+                
+                // Try to fetch the tile directly to get exact error
+                const url = `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/${coords.z}/${coords.x}/${coords.y}.webp?api=${encodeURIComponent(linzApiKey)}`;
+                
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                const errorMsg = `LINZ API Error (${response.status}): ${text || 'Unknown error'}`;
+                                console.error(errorMsg);
+                                
+                                // Track this failure
+                                if (!failedTiles[key]) {
+                                    failedTiles[key] = { failures: 0 };
+                                }
+                                failedTiles[key].failures++;
+                                failedTiles[key].lastError = errorMsg;
+                                
+                                // If it keeps failing, log diagnostics
+                                if (failedTiles[key].failures > 2) {
+                                    console.warn(`Persistent failure for tile ${key}:`, failedTiles[key]);
+                                }
+                            });
+                        }
+                    })
+                    .catch(e => console.error('Error fetching tile data:', e));
             }
             
-            const tile = originalCreateTile.call(this, coords, function(err, tile) {
-                if (err) {
-                    console.error(`Tile error for ${key}: ${err}`);
-                    
-                    // Try to fetch the tile directly to get exact error
-                    const url = `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/${coords.z}/${coords.x}/${coords.y}.webp?api=${encodeURIComponent(linzApiKey)}`;
-                    
-                    fetch(url)
-                        .then(response => {
-                            if (!response.ok) {
-                                return response.text().then(text => {
-                                    const errorMsg = `LINZ API Error (${response.status}): ${text || 'Unknown error'}`;
-                                    console.error(errorMsg);
-                                    
-                                    // Track this failure
-                                    if (!failedTiles[key]) {
-                                        failedTiles[key] = { failures: 0 };
-                                    }
-                                    failedTiles[key].failures++;
-                                    failedTiles[key].lastError = errorMsg;
-                                    
-                                    // If it keeps failing, log diagnostics
-                                    if (failedTiles[key].failures > 2) {
-                                        console.warn(`Persistent failure for tile ${key}:`, failedTiles[key]);
-                                    }
-                                });
-                            }
-                        })
-                        .catch(e => console.error('Error fetching tile data:', e));
-                }
-                
-                done(err, tile);
-            });
-            
-            return tile;
-        };
+            done(err, tile);
+        });
         
-        // Add debugging for LINZ layer
-        linzLayer.on('tileerror', function(error) {
-            // Log the original URL, not the fallback transparent image
-            const originalUrl = error.tile._url || error.tile.src;
-            console.error('LINZ tile error URL:', originalUrl);
+        return tile;
+    };
+    
+    // Add debugging for LINZ layer
+    linzLayer.on('tileerror', function(error) {
+        // Log the original URL, not the fallback transparent image
+        const originalUrl = error.tile._url || error.tile.src;
+        console.error('LINZ tile error URL:', originalUrl);
+        
+        // Check if we're in NZ bounds - if not, this is expected
+        if (error.coords) {
+            const z = error.coords.z;
+            const x = error.coords.x;
+            const y = error.coords.y;
+            const key = `${z}_${x}_${y}`;
             
-            // Check if we're in NZ bounds - if not, this is expected
-            if (error.coords) {
-                const z = error.coords.z;
-                const x = error.coords.x;
-                const y = error.coords.y;
-                const key = `${z}_${x}_${y}`;
-                
-                // NZ bounds in lat/lng
-                const nzBounds = [[-47.5, 166.5], [-34.0, 178.5]];
-                
-                // Convert NZ bounds to tile coordinates at the current zoom level
-                const nwTile = latLngToTile(nzBounds[1][0], nzBounds[0][1], z); // Northwest corner (top-left)
-                const seTile = latLngToTile(nzBounds[0][0], nzBounds[1][1], z); // Southeast corner (bottom-right)
-                
-                // Check if the tile is within NZ bounds
-                const inNZ = x >= nwTile.x && x <= seTile.x && 
-                            y >= nwTile.y && y <= seTile.y;
-                            
-                if (!inNZ) {
-                    console.log(`Tile (${x},${y},${z}) outside of New Zealand bounds - expected to fail`);
-                    return;
-                }
-                
-                console.log(`Tile (${x},${y},${z}) is within New Zealand but failed to load`);
-                
-                // Only try fallback logic if we haven't tried multiple times already
-                if (!failedTiles[key] || failedTiles[key].failures <= 1) {
-                    // Try with demo key if this is the first or second failure
-                    if (linzApiKey !== linzDemoKey) {
-                        console.log(`Trying with demo API key for tile ${key}...`);
+            // NZ bounds in lat/lng
+            const nzBounds = [[-47.5, 166.5], [-34.0, 178.5]];
+            
+            // Convert NZ bounds to tile coordinates at the current zoom level
+            const nwTile = latLngToTile(nzBounds[1][0], nzBounds[0][1], z); // Northwest corner (top-left)
+            const seTile = latLngToTile(nzBounds[0][0], nzBounds[1][1], z); // Southeast corner (bottom-right)
+            
+            // Check if the tile is within NZ bounds
+            const inNZ = x >= nwTile.x && x <= seTile.x && 
+                        y >= nwTile.y && y <= seTile.y;
                         
-                        // Update tracking
-                        if (!failedTiles[key]) {
-                            failedTiles[key] = { failures: 1 };
-                        }
-                        
-                        // Replace the current API key with the demo key
-                        const currentKey = encodeURIComponent(linzApiKey);
-                        const demoKeyEncoded = encodeURIComponent(linzDemoKey);
-                        
-                        // Get the original URL before any modifications
-                        let urlToUse = originalUrl;
-                        if (!urlToUse) {
-                            // Construct URL if original is not available
-                            urlToUse = `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/${z}/${x}/${y}.webp?api=${currentKey}`;
-                        }
-                        
-                        // Replace the API key
-                        const newSrc = urlToUse.replace(
-                            new RegExp(`api=${currentKey}(&|$)`), 
-                            `api=${demoKeyEncoded}$1`
-                        );
-                        
-                        if (newSrc !== error.tile.src) {
-                            error.tile.src = newSrc;
-                            return;
-                        }
+            if (!inNZ) {
+                console.log(`Tile (${x},${y},${z}) outside of New Zealand bounds - expected to fail`);
+                return;
+            }
+            
+            console.log(`Tile (${x},${y},${z}) is within New Zealand but failed to load`);
+            
+            // Only try fallback logic if we haven't tried multiple times already
+            if (!failedTiles[key] || failedTiles[key].failures <= 1) {
+                // Try with demo key if this is the first or second failure
+                if (linzApiKey !== linzDemoKey) {
+                    console.log(`Trying with demo API key for tile ${key}...`);
+                    
+                    // Update tracking
+                    if (!failedTiles[key]) {
+                        failedTiles[key] = { failures: 1 };
+                    }
+                    
+                    // Replace the current API key with the demo key
+                    const currentKey = encodeURIComponent(linzApiKey);
+                    const demoKeyEncoded = encodeURIComponent(linzDemoKey);
+                    
+                    // Get the original URL before any modifications
+                    let urlToUse = originalUrl;
+                    if (!urlToUse) {
+                        // Construct URL if original is not available
+                        urlToUse = `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/${z}/${x}/${y}.webp?api=${currentKey}`;
+                    }
+                    
+                    // Replace the API key
+                    const newSrc = urlToUse.replace(
+                        new RegExp(`api=${currentKey}(&|$)`), 
+                        `api=${demoKeyEncoded}$1`
+                    );
+                    
+                    if (newSrc !== error.tile.src) {
+                        error.tile.src = newSrc;
+                        return;
                     }
                 }
             }
-        });
-        
-        linzLayer.on('tileload', function(tile) {
-            console.log('LINZ tile loaded successfully', tile.coords);
-        });
-
-        // Add layer control
-        const baseMaps = {
-            "LINZ Aerial": linzLayer,
-            "OpenStreetMap": osmLayer,
-            "Satellite": satelliteLayer,
-            "Hybrid": hybridLayer
-        };
-
-        // Add default layer (LINZ)
-        linzLayer.addTo(map);
-
-        // Add layer control to map
-        L.control.layers(baseMaps, null, {
-            collapsed: false
-        }).addTo(map);
-
-        // Draw the trail path
-        const trailLine = L.polyline(settings.trailPath, {
-            color: '#3498db',
-            weight: 4,
-            opacity: 0.8
-        }).addTo(map);
-
-        // Add right-click handler for coordinates
-        map.on('contextmenu', function(e) {
-            const coords = formatCoordinates(e.latlng.lat, e.latlng.lng);
-            const content = `
-                <div class="coordinates-popup">
-                    <div>${coords}</div>
-                    <button onclick="copyCoordinates(${e.latlng.lat}, ${e.latlng.lng})">Copy coordinates</button>
-                </div>
-            `;
-            
-            if (coordinatesPopup) {
-                coordinatesPopup.remove();
-            }
-            
-            coordinatesPopup = L.popup()
-                .setLatLng(e.latlng)
-                .setContent(content)
-                .addTo(map);
-        });
-
-        // Calculate bounds from the trail path coordinates
-        const bounds = L.latLngBounds(settings.trailPath);
-        
-        // Add 20% buffer to the bounds
-        const bufferedBounds = bounds.pad(0.2);
-        
-        // Fit the map to the buffered bounds
-        map.fitBounds(bufferedBounds);
-
-        // Keep track of existing markers to prevent overlaps
-        const existingMarkers = [];
-
-        // Add trail image markers if we have them in the settings
-        if (settings.trailImages && settings.trailImages.length > 0) {
-            // Set the global imagesArray to the trail images for navigation
-            imagesArray = settings.trailImages;
-            
-            settings.trailImages.forEach((image, index) => {
-                // Calculate offset coordinates to avoid overlapping with trail and other markers
-                const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath, existingMarkers);
-                
-                // Add this marker to the list of existing markers
-                existingMarkers.push({
-                    coords: offsetCoords
-                });
-                
-                // Create custom icon for thumbnail with image number overlay
-                const thumbnailIcon = L.divIcon({
-                    className: 'custom-icon',
-                    html: `
-                        <div style="position: relative;">
-                            <img src="/thumbnail/${currentWalkId}/${image.imageName}" alt="Trail Image">
-                            <div class="image-number">${index + 1}</div>
-                        </div>
-                    `,
-                    iconSize: [55, 55],
-                    iconAnchor: [27, 27]
-                });
-
-                // Create marker for thumbnail
-                const thumbnailMarker = L.marker(offsetCoords, { icon: thumbnailIcon });
-                
-                // Create marker for actual location
-                const locationMarker = L.marker(image.coordinates, {
-                    icon: L.divIcon({
-                        className: 'location-marker',
-                        iconSize: [12, 12],
-                        iconAnchor: [6, 6]
-                    })
-                });
-
-                // Create line from thumbnail to location
-                const connectionLine = L.polyline([offsetCoords, image.coordinates], {
-                    color: '#e74c3c',
-                    weight: 2,
-                    opacity: 0.8
-                });
-                
-                // Store the index with the image for reference
-                image.index = index;
-                
-                // Add click handler to thumbnail
-                thumbnailMarker.on('click', () => {
-                    showImagePopup(image, false);
-                });
-                
-                // Add all elements to the map
-                locationMarker.addTo(map);
-                connectionLine.addTo(map);
-                thumbnailMarker.addTo(map);
-            });
         }
-        
-        // Add points of interest if we have them
-        if (settings.pointsOfInterest && settings.pointsOfInterest.length > 0) {
-            settings.pointsOfInterest.forEach(poi => {
-                // Calculate offset coordinates to avoid overlapping with trail and other markers
-                const offsetCoords = getOffsetCoordinates(poi.coordinates, settings.trailPath, existingMarkers);
-                
-                // Add this marker to the list of existing markers
-                existingMarkers.push({
-                    coords: offsetCoords
-                });
-                
-                // Create custom icon for thumbnail with grayscale effect
-                const thumbnailIcon = L.divIcon({
-                    className: 'custom-icon poi-icon',
-                    html: `<img src="/thumbnail/${currentWalkId}/${poi.imageName}" alt="Point of Interest" class="poi-thumbnail">`,
-                    iconSize: [50, 50],
-                    iconAnchor: [25, 25]
-                });
+    });
+    
+    linzLayer.on('tileload', function(tile) {
+        console.log('LINZ tile loaded successfully', tile.coords);
+    });
 
-                // Create marker for thumbnail
-                const thumbnailMarker = L.marker(offsetCoords, { icon: thumbnailIcon });
-                
-                // Create marker for actual location with different style
-                const locationMarker = L.marker(poi.coordinates, {
-                    icon: L.divIcon({
-                        className: 'location-marker poi-location',
-                        iconSize: [12, 12],
-                        iconAnchor: [6, 6]
-                    })
-                });
+    // Add layer control
+    const baseMaps = {
+        "LINZ Aerial": linzLayer,
+        "OpenStreetMap": osmLayer,
+        "Satellite": satelliteLayer,
+        "Hybrid": hybridLayer
+    };
 
-                // Create line from thumbnail to location with different style
-                const connectionLine = L.polyline([offsetCoords, poi.coordinates], {
-                    color: '#95a5a6', // Gray color for POI
-                    weight: 2,
-                    opacity: 0.7,
-                    dashArray: '5, 5' // Dashed line for POI
-                });
-                
-                // Add click handler to thumbnail for point of interest
-                thumbnailMarker.on('click', () => {
-                    // Temporarily store the current imagesArray
-                    const tempImagesArray = imagesArray;
-                    
-                    // Set navigation index to -1 to disable nav controls for POIs
-                    currentImageIndex = -1;
-                    
-                    // Show the POI popup
-                    showImagePopup(poi, false);
-                    
-                    // Restore the original imagesArray
-                    imagesArray = tempImagesArray;
-                });
-                
-                // Add all elements to the map
-                locationMarker.addTo(map);
-                connectionLine.addTo(map);
-                thumbnailMarker.addTo(map);
-            });
-        }
-    } catch (error) {
-        console.error('Error initializing map:', error);
-        // Show error on the page
-        document.getElementById('map').innerHTML = `
-            <div class="error-message">
-                <h3>Error loading walk</h3>
-                <p>${error.message}</p>
-                <a href="/" class="back-button">Return to walks list</a>
+    // Add default layer (LINZ)
+    linzLayer.addTo(map);
+
+    // Add layer control to map
+    L.control.layers(baseMaps, null, {
+        collapsed: false
+    }).addTo(map);
+
+    // Draw the trail path
+    const trailLine = L.polyline(settings.trailPath, {
+        color: 'var(--main-color, #3498db)',
+        weight: 4,
+        opacity: 0.8,
+        className: 'trailPath'
+    }).addTo(map);
+
+    // Add right-click handler for coordinates
+    map.on('contextmenu', function(e) {
+        const coords = formatCoordinates(e.latlng.lat, e.latlng.lng);
+        const content = `
+            <div class="coordinates-popup">
+                <div>${coords}</div>
+                <button onclick="copyCoordinates(${e.latlng.lat}, ${e.latlng.lng})">Copy coordinates</button>
             </div>
         `;
+        
+        if (coordinatesPopup) {
+            coordinatesPopup.remove();
+        }
+        
+        coordinatesPopup = L.popup()
+            .setLatLng(e.latlng)
+            .setContent(content)
+            .addTo(map);
+    });
+
+    // Calculate bounds from the trail path coordinates
+    const bounds = L.latLngBounds(settings.trailPath);
+    
+    // Add 20% buffer to the bounds
+    const bufferedBounds = bounds.pad(0.2);
+    
+    // Fit the map to the buffered bounds
+    map.fitBounds(bufferedBounds);
+
+    // Keep track of existing markers to prevent overlaps
+    const existingMarkers = [];
+
+    // Add trail image markers if we have them in the settings
+    if (settings.trailImages && settings.trailImages.length > 0) {
+        // Set the global imagesArray to the trail images for navigation
+        imagesArray = settings.trailImages;
+        
+        settings.trailImages.forEach((image, index) => {
+            // Calculate offset coordinates to avoid overlapping with trail and other markers
+            const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath, existingMarkers);
+            
+            // Add this marker to the list of existing markers
+            existingMarkers.push({
+                coords: offsetCoords
+            });
+            
+            // Create custom icon for thumbnail with image number overlay
+            const thumbnailIcon = L.divIcon({
+                className: 'custom-icon',
+                html: `
+                    <div style="position: relative;">
+                        <img src="/thumbnail/${currentWalkId}/${image.imageName}" alt="Trail Image">
+                        <div class="image-number">${index + 1}</div>
+                    </div>
+                `,
+                iconSize: [55, 55],
+                iconAnchor: [27, 27]
+            });
+
+            // Create marker for thumbnail
+            const thumbnailMarker = L.marker(offsetCoords, { icon: thumbnailIcon });
+            
+            // Create marker for actual location
+            const locationMarker = L.marker(image.coordinates, {
+                icon: L.divIcon({
+                    className: 'location-marker',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                })
+            });
+
+            // Create line from thumbnail to location
+            const connectionLine = L.polyline([offsetCoords, image.coordinates], {
+                color: '#e74c3c',
+                weight: 2,
+                opacity: 0.8
+            });
+            
+            // Store the index with the image for reference
+            image.index = index;
+            
+            // Add click handler to thumbnail
+            thumbnailMarker.on('click', () => {
+                showImagePopup(image, false);
+            });
+            
+            // Add all elements to the map
+            locationMarker.addTo(map);
+            connectionLine.addTo(map);
+            thumbnailMarker.addTo(map);
+        });
+    }
+    
+    // Add points of interest if we have them
+    if (settings.pointsOfInterest && settings.pointsOfInterest.length > 0) {
+        settings.pointsOfInterest.forEach(poi => {
+            // Calculate offset coordinates to avoid overlapping with trail and other markers
+            const offsetCoords = getOffsetCoordinates(poi.coordinates, settings.trailPath, existingMarkers);
+            
+            // Add this marker to the list of existing markers
+            existingMarkers.push({
+                coords: offsetCoords
+            });
+            
+            // Create custom icon for thumbnail with grayscale effect
+            const thumbnailIcon = L.divIcon({
+                className: 'custom-icon poi-icon',
+                html: `<img src="/thumbnail/${currentWalkId}/${poi.imageName}" alt="Point of Interest" class="poi-thumbnail">`,
+                iconSize: [50, 50],
+                iconAnchor: [25, 25]
+            });
+
+            // Create marker for thumbnail
+            const thumbnailMarker = L.marker(offsetCoords, { icon: thumbnailIcon });
+            
+            // Create marker for actual location with different style
+            const locationMarker = L.marker(poi.coordinates, {
+                icon: L.divIcon({
+                    className: 'location-marker poi-location',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                })
+            });
+
+            // Create line from thumbnail to location with different style
+            const connectionLine = L.polyline([offsetCoords, poi.coordinates], {
+                color: '#95a5a6', // Gray color for POI
+                weight: 2,
+                opacity: 0.7,
+                dashArray: '5, 5' // Dashed line for POI
+            });
+            
+            // Add click handler to thumbnail for point of interest
+            thumbnailMarker.on('click', () => {
+                // Temporarily store the current imagesArray
+                const tempImagesArray = imagesArray;
+                
+                // Set navigation index to -1 to disable nav controls for POIs
+                currentImageIndex = -1;
+                
+                // Show the POI popup
+                showImagePopup(poi, false);
+                
+                // Restore the original imagesArray
+                imagesArray = tempImagesArray;
+            });
+            
+            // Add all elements to the map
+            locationMarker.addTo(map);
+            connectionLine.addTo(map);
+            thumbnailMarker.addTo(map);
+        });
+    }
+}
+
+// Function to initialize the map and load data
+async function initialize() {
+    try {
+        // Get application version - will be replaced by the docker-entrypoint.sh script
+        const APP_VERSION = 'v1.0.0';
+        const BUILD_DATE = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        document.getElementById('version-display').textContent = `${APP_VERSION} (${BUILD_DATE})`;
+        
+        // Load settings from GPX and JSON files
+        settings = await loadSettings();
+        
+        // Update the page title with the trail name
+        document.getElementById('page-title').textContent = settings.title;
+        
+        // Load site configuration if not already loaded by the inline script
+        if (!document.body.classList.contains('dark-theme')) {
+            await loadSiteConfig();
+        }
+        
+        // Set up map with trail path and markers
+        setupMap();
+        
+        // Add keyboard navigation handlers
+        document.addEventListener('keydown', handleKeyNavigation);
+        
+        // Add fullscreen popup close button handler
+        document.querySelector('.fullscreen-close').addEventListener('click', hideFullscreenPopup);
+        
+        // Close fullscreen popup when clicking outside the image
+        document.getElementById('fullscreen-popup').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideFullscreenPopup();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error initializing map:', error);
+        document.getElementById('map').innerHTML = `
+            <div class="error-message">
+                Error loading map: ${error.message}<br>
+                <a href="/">Return to home page</a>
+            </div>
+        `;
+    }
+}
+
+// Function to load site configuration
+async function loadSiteConfig() {
+    try {
+        // Reset CSS variables to defaults first to ensure clean state
+        document.documentElement.style.setProperty('--main-background', '#f5f5f5');
+        document.documentElement.style.setProperty('--main-color', '#3498db');
+        
+        const response = await fetch('/api/site-config');
+        if (response.ok) {
+            siteConfig = await response.json();
+            
+            // Add class to indicate site config is loaded
+            document.documentElement.classList.add('config-loaded');
+            
+            // Apply site name to page title - add walk name
+            document.title = `${settings.title} - ${siteConfig.siteName}`;
+            
+            // Apply theme
+            if (siteConfig.theme) {
+                // Apply theme colors directly to CSS variables
+                if (siteConfig.theme.mainBackground) {
+                    document.documentElement.style.setProperty('--main-background', siteConfig.theme.mainBackground);
+                    // Add the dark-theme class to get text contrast right
+                    document.body.classList.add('dark-theme');
+                }
+                
+                if (siteConfig.theme.mainColor) {
+                    document.documentElement.style.setProperty('--main-color', siteConfig.theme.mainColor);
+                }
+                
+                // Log for debugging
+                console.log('Applied theme colors', siteConfig.theme);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading site configuration:', error);
+        // Continue with defaults
     }
 }
 

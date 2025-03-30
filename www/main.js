@@ -1,5 +1,12 @@
 // Global variables
 let currentImagePopup = null;
+let siteConfig = {
+    siteName: "Trail Map Viewer",
+    siteTitle: "Trail Map Collection",
+    theme: {
+        mainBackground: "#ffffff"
+    }
+};
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', async function() {
@@ -8,12 +15,61 @@ document.addEventListener('DOMContentLoaded', async function() {
     const BUILD_DATE = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     document.getElementById('version-display').textContent = `${APP_VERSION} (${BUILD_DATE})`;
     
+    // Load site configuration
+    await loadSiteConfig();
+    
     // Set up image popup handling
     setupImagePopup();
     
     // Load and display walks
     await loadWalks();
 });
+
+// Function to load site configuration
+async function loadSiteConfig() {
+    try {
+        // Reset CSS variables to defaults first to ensure clean state
+        document.documentElement.style.setProperty('--main-background', '#f5f5f5');
+        document.documentElement.style.setProperty('--main-color', '#3498db');
+        
+        const response = await fetch('/api/site-config');
+        if (response.ok) {
+            siteConfig = await response.json();
+            
+            // Add class to indicate site config is loaded
+            document.documentElement.classList.add('config-loaded');
+            
+            // Apply site name to page title
+            document.title = siteConfig.siteName;
+            
+            // Apply site title to header
+            const headerTitle = document.getElementById('main-header');
+            if (headerTitle) {
+                headerTitle.textContent = siteConfig.siteTitle;
+            }
+            
+            // Apply theme
+            if (siteConfig.theme) {
+                // Apply theme colors directly to CSS variables
+                if (siteConfig.theme.mainBackground) {
+                    document.documentElement.style.setProperty('--main-background', siteConfig.theme.mainBackground);
+                    // Add the dark-theme class to get text contrast right
+                    document.body.classList.add('dark-theme');
+                }
+                
+                if (siteConfig.theme.mainColor) {
+                    document.documentElement.style.setProperty('--main-color', siteConfig.theme.mainColor);
+                }
+                
+                // Log for debugging
+                console.log('Applied theme colors', siteConfig.theme);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading site configuration:', error);
+        // Continue with defaults
+    }
+}
 
 // Function to set up the image popup event handlers
 function setupImagePopup() {

@@ -1,3 +1,9 @@
+:root {
+    /* Theme variables with defaults */
+    --main-background: #f5f5f5;
+    --main-color: #3498db;
+}
+
 body, html {
     margin: 0;
     padding: 0;
@@ -5,7 +11,12 @@ body, html {
     width: 100%;
     overflow: hidden;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f5f5f5;
+    background-color: var(--main-background);
+    transition: background-color 0.3s ease;
+}
+
+body {
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #page-title {
@@ -130,7 +141,7 @@ body, html {
     background-color: #f9f9f9;
     padding: 12px 15px;
     border-radius: 5px;
-    border-left: 4px solid #3498db;
+    border-left: 4px solid var(--main-color, #3498db);
     margin-bottom: 10px;
     max-height: 80px;
     overflow-y: auto;
@@ -191,7 +202,7 @@ body, html {
 }
 
 .coordinates-popup button {
-    background-color: #3498db;
+    background-color: var(--main-color, #3498db);
     color: white;
     border: none;
     padding: 5px 10px;
@@ -202,7 +213,11 @@ body, html {
 }
 
 .coordinates-popup button:hover {
-    background-color: #2980b9;
+    background-color: color-mix(in srgb, var(--main-color, #3498db) 80%, black);
+}
+
+.coordinates-popup button:focus {
+    outline: 2px solid var(--main-color, #3498db);
 }
 
 .loading-indicator {
@@ -262,7 +277,7 @@ body, html {
 }
 
 .nav-buttons button {
-    background-color: #3498db;
+    background-color: var(--main-color, #3498db);
     color: white;
     border: none;
     padding: 8px 15px;
@@ -273,12 +288,11 @@ body, html {
 }
 
 .nav-buttons button:hover {
-    background-color: #2980b9;
+    background-color: color-mix(in srgb, var(--main-color, #3498db) 80%, black);
 }
 
 .nav-buttons button:focus {
-    outline: 2px solid #3498db;
-    outline-offset: 2px;
+    outline: 2px solid var(--main-color, #3498db);
 }
 
 .nav-buttons button:disabled {
@@ -312,7 +326,25 @@ body, html {
     font-size: 28px;
     font-weight: bold;
     margin: 30px 0;
-    color: #2c3e50;
+    color: var(--main-color);
+}
+
+/* Dark theme for main page */
+body.dark-theme {
+    background-color: var(--main-background, #1a1a1a);
+    color: #e0e0e0;
+}
+
+body.dark-theme #main-header {
+    color: #ffffff;
+}
+
+body.dark-theme .walk-card {
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme .walk-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
 }
 
 .walks-grid {
@@ -411,7 +443,7 @@ body, html {
 }
 
 #back-button a {
-    color: #2980b9;
+    color: var(--main-color, #2980b9);
     text-decoration: none;
     font-size: 14px;
     font-weight: bold;
@@ -551,7 +583,7 @@ body, html {
     left: -10px;
     width: 20px;
     height: 20px;
-    background-color: #3498db;
+    background-color: var(--main-color, #3498db);
     color: white;
     border-radius: 50%;
     font-size: 12px;
@@ -567,7 +599,7 @@ body, html {
 
 .image-sequence {
     display: inline-block;
-    background-color: #3498db;
+    background-color: var(--main-color, #3498db);
     color: white;
     font-size: 12px;
     font-weight: bold;
@@ -575,4 +607,15 @@ body, html {
     border-radius: 3px;
     margin-right: 8px;
     vertical-align: middle;
+}
+
+/* Update trailLine color to use theme color */
+.leaflet-interactive.trailPath {
+    stroke: var(--main-color, #3498db) !important;
+}
+
+/* Fix button hover state to use darker version of main color */
+.nav-buttons button:hover:not(:disabled),
+.coordinates-popup button:hover {
+    background-color: color-mix(in srgb, var(--main-color) 80%, black);
 }

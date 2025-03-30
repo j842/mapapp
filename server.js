@@ -265,6 +265,37 @@ app.get('/api/walk-info/:walkId', async (req, res) => {
     }
 });
 
+// Site configuration endpoint
+app.get('/api/site-config', (req, res) => {
+    try {
+        const configPath = path.join(DATA_DIR, 'site_config.json');
+        
+        // Check if config file exists
+        if (fs.existsSync(configPath)) {
+            const configData = fs.readFileSync(configPath, 'utf8');
+            const config = JSON.parse(configData);
+            
+            // Set cache headers (1 hour)
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            
+            res.json(config);
+        } else {
+            // Return default config if file doesn't exist
+            res.json({
+                siteName: "Trail Map Viewer",
+                siteTitle: "Trail Map Collection"
+            });
+        }
+    } catch (err) {
+        console.error('Error fetching site configuration:', err);
+        // Return default config if there's an error
+        res.status(200).json({
+            siteName: "Trail Map Viewer",
+            siteTitle: "Trail Map Collection"
+        });
+    }
+});
+
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

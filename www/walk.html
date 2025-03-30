@@ -38,6 +38,49 @@
         </div>
     </div>
     
+    <script>
+        // Load site configuration before other scripts
+        async function loadSiteConfig() {
+            try {
+                // Reset CSS variables to defaults first to ensure clean state
+                document.documentElement.style.setProperty('--main-background', '#f5f5f5');
+                document.documentElement.style.setProperty('--main-color', '#3498db');
+                
+                const response = await fetch('/api/site-config');
+                if (response.ok) {
+                    const siteConfig = await response.json();
+                    
+                    // Add class to indicate site config is loaded
+                    document.documentElement.classList.add('config-loaded');
+                    
+                    // Apply site name to page title
+                    document.title = siteConfig.siteName;
+                    
+                    // Apply theme
+                    if (siteConfig.theme) {
+                        // Apply theme colors directly to CSS variables
+                        if (siteConfig.theme.mainBackground) {
+                            document.documentElement.style.setProperty('--main-background', siteConfig.theme.mainBackground);
+                            // Add the dark-theme class to get text contrast right
+                            document.body.classList.add('dark-theme');
+                        }
+                        
+                        if (siteConfig.theme.mainColor) {
+                            document.documentElement.style.setProperty('--main-color', siteConfig.theme.mainColor);
+                        }
+                        
+                        // Log for debugging
+                        console.log('Applied theme colors', siteConfig.theme);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading site configuration:', error);
+            }
+        }
+        
+        // Load configuration immediately
+        loadSiteConfig();
+    </script>
     <script src="script.js"></script>
 </body>
 </html> 
