@@ -21,6 +21,19 @@ if [ ! -d "data" ]; then
     exit 1
 fi
 
+# Check if data directory is empty
+if [ -z "$(ls -A data 2>/dev/null)" ]; then
+    echo "Error: data directory is empty"
+    echo "Please add walk data before running the container"
+    echo "Expected structure:"
+    echo "  data/"
+    echo "    ├── mywalk/"
+    echo "    │   ├── walk_settings.json    # Required"
+    echo "    │   ├── trail.gpx             # Optional"
+    echo "    │   └── images/               # Directory for images"
+    exit 1
+fi
+
 # Check for at least one walk subfolder
 WALK_COUNT=0
 for d in data/*/; do
@@ -80,10 +93,10 @@ fi
 
 echo "Using LINZ API key: $LINZ_API_KEY"
 
-# Run the container with the data directory mounted and LINZ API key
+# Run the container with the data directory mounted as read-only and LINZ API key
 docker run -d \
     -p $PORT:80 \
-    -v "$(pwd)/data:/data" \
+    -v "$(pwd)/data:/data:ro" \
     -e LINZ_API_KEY="$LINZ_API_KEY" \
     --name mapapp \
     mapapp

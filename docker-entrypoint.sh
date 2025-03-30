@@ -31,23 +31,16 @@ sed -i "s/const BUILD_DATE = new Date().toISOString().split('T')\[0\];/const BUI
 # Ensure logs directory exists
 mkdir -p /var/log/nginx
 
-# Ensure the data directory is accessible
+# Check data directory (assumed to be read-only)
 echo "Checking data directory structure..."
-# Verify data directory exists and has at least one walk
-if [ ! -d "/data" ] || [ -z "$(ls -A /data 2>/dev/null)" ]; then
-  echo "Warning: Data directory is empty. Creating example walk directory structure..."
-  mkdir -p /data/example/images
-  
-  # Create a basic walk_settings.json if it doesn't exist
-  if [ ! -f "/data/example/walk_settings.json" ]; then
-    echo '{
-      "title": "Example Walk",
-      "description": "This is an example walk. Add your own walks by creating directories in the data folder.",
-      "trailPath": [[51.505, -0.09], [51.51, -0.1], [51.52, -0.12]],
-      "images": []
-    }' > /data/example/walk_settings.json
-    echo "Created example walk in /data/example/"
-  fi
+if [ ! -d "/data" ]; then
+  echo "ERROR: Data directory not found. The container requires a mounted data directory."
+  exit 1
+fi
+
+if [ -z "$(ls -A /data 2>/dev/null)" ]; then
+  echo "ERROR: Data directory is empty. Please add walk data before starting the container."
+  exit 1
 fi
 
 # Verify the data symlink exists in the app directory
@@ -55,10 +48,6 @@ if [ ! -L "/app/data" ]; then
   echo "Creating symbolic link for data directory..."
   ln -sf /data /app/data
 fi
-
-# Ensure data directory has correct permissions
-chown -R nginx:nginx /data
-chmod -R 755 /data
 
 # Create nginx cache directory
 mkdir -p /var/cache/nginx/thumbnails
