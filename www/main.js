@@ -74,6 +74,17 @@ async function createWalkCard(walkId) {
     
     const settings = await response.json();
     
+    // Fetch walk file info
+    const infoResponse = await fetch(`/api/walk-info/${walkId}`);
+    let fileDate = '';
+    if (infoResponse.ok) {
+        const walkInfo = await infoResponse.json();
+        const date = new Date(walkInfo.lastModified);
+        fileDate = date.toLocaleDateString();
+    } else {
+        fileDate = 'Unknown date';
+    }
+    
     // Create walk card element
     const walkCard = document.createElement('div');
     walkCard.className = 'walk-card';
@@ -109,7 +120,7 @@ async function createWalkCard(walkId) {
             <div class="walk-card-description">${settings.description || 'No description available'}</div>
             <div class="walk-card-stats">
                 <span>${settings.images ? settings.images.length : 0} photos</span>
-                <span>ID: ${walkId}</span>
+                <span>Updated: ${fileDate}</span>
             </div>
         </div>
     `;

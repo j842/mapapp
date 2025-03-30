@@ -156,6 +156,32 @@ app.get('/health', (req, res) => {
     res.status(200).send('OK');
 });
 
+// API endpoint for getting walk info including file dates
+app.get('/api/walk-info/:walkId', async (req, res) => {
+    try {
+        const { walkId } = req.params;
+        const settingsPath = path.join(DATA_DIR, walkId, 'walk_settings.json');
+        
+        if (!fs.existsSync(settingsPath)) {
+            return res.status(404).json({ error: 'Walk settings not found' });
+        }
+        
+        // Get file stats
+        const stats = await stat(settingsPath);
+        const lastModified = stats.mtime;
+        const created = stats.birthtime;
+        
+        res.json({
+            id: walkId,
+            lastModified: lastModified,
+            created: created
+        });
+    } catch (err) {
+        console.error(`Error getting walk info for ${req.params.walkId}:`, err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
