@@ -779,9 +779,10 @@ function setupMap() {
     // Add default layer (LINZ)
     linzLayer.addTo(map);
 
-    // Add layer control to map
+    // Add layer control to map - position it at the bottom right
     L.control.layers(baseMaps, null, {
-        collapsed: false
+        collapsed: false,
+        position: 'bottomright'
     }).addTo(map);
 
     // Draw the trail path
@@ -968,6 +969,9 @@ async function initialize() {
         
         // Set up map with trail path and markers
         setupMap();
+
+        // Show the Start Tour button if we have trail images
+        setupStartTourButton();
         
         // Add keyboard navigation handlers
         document.addEventListener('keydown', handleKeyNavigation);
@@ -990,6 +994,32 @@ async function initialize() {
                 <a href="/">Return to home page</a>
             </div>
         `;
+    }
+}
+
+// Function to start the trail tour by showing the first image
+function startTour() {
+    if (imagesArray && imagesArray.length > 0) {
+        // Set current image index to 0 (first image)
+        currentImageIndex = 0;
+        
+        // Show the first image popup
+        showImagePopup(imagesArray[0], true);
+    }
+}
+
+// Function to setup the Start Tour button
+function setupStartTourButton() {
+    const startTourButton = document.getElementById('start-tour-button');
+    
+    // Only show the button if we have trail images
+    if (imagesArray && imagesArray.length > 0) {
+        startTourButton.style.display = 'flex';
+        
+        // Add click event listener
+        startTourButton.addEventListener('click', startTour);
+    } else {
+        startTourButton.style.display = 'none';
     }
 }
 
