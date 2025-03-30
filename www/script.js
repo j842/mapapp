@@ -274,8 +274,8 @@ function createMiniMap(coordinates, container) {
     // Create a container for the mini map
     const mapContainer = document.createElement('div');
     mapContainer.className = 'mini-map';
-    mapContainer.style.width = '100px';
-    mapContainer.style.height = '100px';
+    mapContainer.style.width = '120px';
+    mapContainer.style.height = '120px';
     container.appendChild(mapContainer);
     
     // Create mini map with the same base layer as the main map
@@ -384,8 +384,8 @@ async function showImagePopup(image, fromKeyNavigation = false, isPointOfInteres
             const imageInfo = await response.json();
             
             // Calculate the right dimensions for the container
-            const viewportWidth = window.innerWidth * 0.75; // 75% of viewport width (reduced from 80%)
-            const viewportHeight = window.innerHeight * 0.6; // 60% of viewport height (reduced from 70%)
+            const viewportWidth = window.innerWidth * 0.75; // 75% of viewport width
+            const viewportHeight = window.innerHeight * 0.6; // 60% of viewport height
             
             // Calculate dimensions while maintaining aspect ratio
             let width, height;
@@ -418,15 +418,16 @@ async function showImagePopup(image, fromKeyNavigation = false, isPointOfInteres
             imageContainer.style.width = `${containerWidth}px`;
             imageContainer.style.height = `${containerHeight}px`;
             
-            // Pre-size the thumbnail to match the full image dimensions
             // Create a full-size thumbnail URL that's scaled to the actual dimensions
-            const thumbnailFullsizeUrl = `/thumbnail/${currentWalkId}/${image.imageName}`;
+            const thumbnailUrl = `/thumbnail/${currentWalkId}/${image.imageName}`;
+            
+            // Explicitly set the dimensions on the image to ensure correct sizing in all browsers
             popupImage.style.width = `${containerWidth}px`;
             popupImage.style.height = `${containerHeight}px`;
             popupImage.style.objectFit = 'cover';
             
             // Set thumbnail as the initial image
-            popupImage.src = thumbnailFullsizeUrl;
+            popupImage.src = thumbnailUrl;
         } else {
             // If we can't get dimensions, just show the thumbnail
             popupImage.src = `/thumbnail/${currentWalkId}/${image.imageName}`;
@@ -453,36 +454,52 @@ async function showImagePopup(image, fromKeyNavigation = false, isPointOfInteres
         // Customize loading message
         loadingIndicator.textContent = 'Loading full image...';
         
-        // Load the full image in the background
+        // Load the scaled image in the background
         const fullImage = new Image();
         fullImage.onload = function() {
             // Replace placeholder with full image once loaded
-            // Remove fixed dimensions and let the image display naturally
-            popupImage.style.width = '';
-            popupImage.style.height = '';
-            popupImage.style.objectFit = '';
+            // Keep explicit dimensions to ensure correct sizing in Edge
             popupImage.src = this.src;
             popupImage.classList.remove('loading');
+            console.log('Successfully loaded full image:', image.imageName);
         };
         
-        fullImage.onerror = function() {
-            console.error('Error loading full image:', image.imageName);
-            // Keep thumbnail as fallback but remove loading state
-            popupImage.classList.remove('loading');
-            popupImage.classList.add('error');
-            popupImage.style.width = '';
-            popupImage.style.height = '';
-            popupImage.style.objectFit = '';
+        fullImage.onerror = function(event) {
+            // Add more diagnostic information
+            console.error('Error loading full image:', image.imageName, 'from URL:', this.src);
+            console.error('Error event details:', event);
             
-            loadingIndicator.textContent = 'Failed to load full image';
-            setTimeout(() => {
-                loadingIndicator.style.opacity = '0';
-            }, 2000);
-            popupNotes.textContent = (image.notes || '') + ' (Full image could not be loaded)';
+            // Try loading the image directly from the /data path as a fallback
+            const directImageUrl = `/data/${currentWalkId}/images/${image.imageName}`;
+            console.log('Attempting fallback with direct image path:', directImageUrl);
+            
+            const fallbackImage = new Image();
+            fallbackImage.onload = function() {
+                // Replace with direct image path if that works
+                popupImage.src = this.src;
+                popupImage.classList.remove('loading');
+                console.log('Successfully loaded image from fallback path');
+            };
+            
+            fallbackImage.onerror = function() {
+                // Keep thumbnail as fallback but remove loading state
+                console.error('Fallback image also failed to load');
+                popupImage.classList.remove('loading');
+                popupImage.classList.add('error');
+                
+                loadingIndicator.textContent = 'Failed to load full image';
+                setTimeout(() => {
+                    loadingIndicator.style.opacity = '0';
+                }, 2000);
+                popupNotes.textContent = (image.notes || '') + ' (Full image could not be loaded)';
+            };
+            
+            fallbackImage.src = directImageUrl;
         };
         
-        // Start loading the full image
-        fullImage.src = `/data/${currentWalkId}/images/${image.imageName}`;
+        // Start loading the scaled image instead of full image
+        console.log('Starting to load scaled image:', `/scaled-image/${currentWalkId}/${image.imageName}`);
+        fullImage.src = `/scaled-image/${currentWalkId}/${image.imageName}`;
         
     } catch (error) {
         console.error('Error in showImagePopup:', error);

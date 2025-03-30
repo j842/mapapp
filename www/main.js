@@ -100,7 +100,7 @@ async function createWalkCard(walkId) {
         imageHtml = `
             <img 
                 class="walk-card-image loading" 
-                src="/data/${walkId}/images/${coverImage}" 
+                src="/scaled-image/${walkId}/${coverImage}" 
                 alt="${settings.title || walkId}"
             >
         `;
@@ -152,7 +152,7 @@ async function createWalkCard(walkId) {
         img.onerror = function() {
             this.classList.remove('loading');
             this.classList.add('error');
-            // Fall back to thumbnail if full image fails
+            // Fall back to thumbnail if scaled image fails
             this.src = `/thumbnail/${walkId}/${coverImage}`;
         };
     }

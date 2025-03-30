@@ -128,6 +128,50 @@ app.get('/thumbnail/:walkId/:image', async (req, res) => {
     }
 });
 
+// Scaled image generator - limits resolution to 1280px max dimension (cacheable)
+app.get('/scaled-image/:walkId/:image', async (req, res) => {
+    try {
+        const { walkId, image } = req.params;
+        const imagePath = path.join(DATA_DIR, walkId, 'images', image);
+        
+        // Check if image exists
+        if (!fs.existsSync(imagePath)) {
+            console.error(`Image not found: ${imagePath}`);
+            return res.status(404).send('Image not found');
+        }
+        
+        // Set cache headers (7 days)
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        
+        // Get image metadata to determine dimensions
+        const metadata = await sharp(imagePath).metadata();
+        
+        // Only resize if the image is larger than 1280px in any dimension
+        let imageProcessor = sharp(imagePath);
+        
+        if (metadata.width > 1280 || metadata.height > 1280) {
+            // Resize to fit within 1280x1280, maintaining aspect ratio
+            imageProcessor = imageProcessor.resize({
+                width: metadata.width > metadata.height ? 1280 : undefined,
+                height: metadata.height >= metadata.width ? 1280 : undefined,
+                fit: 'inside',
+                withoutEnlargement: true
+            });
+        }
+        
+        // Convert to high quality JPEG for better compression
+        const scaledImage = await imageProcessor
+            .jpeg({ quality: 90 })
+            .toBuffer();
+            
+        res.contentType('image/jpeg');
+        res.send(scaledImage);
+    } catch (err) {
+        console.error('Error generating scaled image:', err);
+        res.status(500).send('Error generating scaled image');
+    }
+});
+
 // Image info endpoint
 app.get('/image-info/:walkId/:image', async (req, res) => {
     try {

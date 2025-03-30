@@ -88,6 +88,8 @@ body, html {
     display: block;
     margin: 0 auto;
     transition: filter 0.3s ease, opacity 0.3s ease, width 0.3s ease, height 0.3s ease;
+    -ms-interpolation-mode: bicubic; /* Improve image scaling in Edge/IE */
+    object-fit: contain !important; /* Ensure consistent behavior across browsers */
 }
 
 #image-popup img.loading {
@@ -425,8 +427,8 @@ body, html {
 }
 
 .mini-map {
-    width: 100px;
-    height: 100px;
+    width: 120px;
+    height: 120px;
     border: 2px solid white;
     border-radius: 5px;
     overflow: hidden;
