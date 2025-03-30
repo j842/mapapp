@@ -242,10 +242,48 @@ function showImagePopup(image) {
     const popup = document.getElementById('image-popup');
     const popupImage = document.getElementById('popup-image');
     const popupNotes = document.getElementById('popup-notes');
+    const loadingIndicator = document.querySelector('.loading-indicator');
     
-    popupImage.src = `data/images/${image.imageName}`;
-    popupNotes.textContent = image.notes;
+    // Reset classes
+    popupImage.classList.remove('loading', 'error');
+    
+    // Display popup immediately with loading state
     popup.style.display = 'block';
+    
+    // Set loading state
+    popupImage.classList.add('loading');
+    
+    // Set current thumbnail as temporary placeholder
+    popupImage.src = `/thumbnail/${image.imageName}`;
+    
+    // Set notes
+    popupNotes.textContent = image.notes || 'Loading...';
+    
+    // Customize loading message
+    loadingIndicator.textContent = 'Loading full image...';
+    
+    // Load the full image in the background
+    const fullImage = new Image();
+    fullImage.onload = function() {
+        // Replace placeholder with full image once loaded
+        popupImage.src = this.src;
+        popupImage.classList.remove('loading');
+    };
+    
+    fullImage.onerror = function() {
+        console.error('Error loading full image:', image.imageName);
+        // Keep thumbnail as fallback if full image fails to load
+        popupImage.classList.remove('loading');
+        popupImage.classList.add('error');
+        loadingIndicator.textContent = 'Failed to load full image';
+        setTimeout(() => {
+            loadingIndicator.style.opacity = '0';
+        }, 2000);
+        popupNotes.textContent = (image.notes || '') + ' (Full image could not be loaded)';
+    };
+    
+    // Start loading the full image
+    fullImage.src = `data/images/${image.imageName}`;
 }
 
 // Initialize the map and load settings
