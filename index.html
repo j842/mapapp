@@ -408,8 +408,15 @@
                     attribution: '© Google'
                 });
 
-                // Add LINZ imagery layer (direct connection)
-                const linzLayer = L.tileLayer('https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api=LINZ_API_KEY_PLACEHOLDER', {
+                // Add LINZ imagery layer (direct connection with enhanced error handling)
+                const linzApiKey = 'LINZ_API_KEY_PLACEHOLDER';
+                const linzDemoKey = 'd01jrm3t2gzdycm5j8rh03e69fw'; // Demo key as fallback
+                
+                // Track errors to avoid repeated failures
+                const failedTiles = {};
+                
+                const linzLayer = L.tileLayer('https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api={api}', {
+                    api: encodeURIComponent(linzApiKey),
                     attribution: '© <a href="//www.linz.govt.nz/linz-copyright">LINZ CC BY 4.0</a> © <a href="//www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution">Imagery Basemap contributors</a>',
                     maxZoom: 19,
                     bounds: [[-47.5, 166.5], [-34.0, 178.5]], // New Zealand bounds
@@ -420,36 +427,134 @@
                     updateWhenZooming: false
                 });
                 
+                // Enhance the tile loading to capture every response via fetch
+                const originalCreateTile = linzLayer.createTile;
+                linzLayer.createTile = function(coords, done) {
+                    const key = `${coords.z}_${coords.x}_${coords.y}`;
+                    
+                    // Check if this tile has failed multiple times with primary key
+                    if (failedTiles[key] && failedTiles[key].failures > 0) {
+                        // Use demo key for previously failed tiles
+                        this.options.api = encodeURIComponent(linzDemoKey);
+                    } else {
+                        // Use primary key
+                        this.options.api = encodeURIComponent(linzApiKey);
+                    }
+                    
+                    const tile = originalCreateTile.call(this, coords, function(err, tile) {
+                        if (err) {
+                            console.error(`Tile error for ${key}: ${err}`);
+                            
+                            // Try to fetch the tile directly to get exact error
+                            const url = `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/${coords.z}/${coords.x}/${coords.y}.webp?api=${encodeURIComponent(linzApiKey)}`;
+                            
+                            fetch(url)
+                                .then(response => {
+                                    if (!response.ok) {
+                                        return response.text().then(text => {
+                                            const errorMsg = `LINZ API Error (${response.status}): ${text || 'Unknown error'}`;
+                                            console.error(errorMsg);
+                                            
+                                            // Track this failure
+                                            if (!failedTiles[key]) {
+                                                failedTiles[key] = { failures: 0 };
+                                            }
+                                            failedTiles[key].failures++;
+                                            failedTiles[key].lastError = errorMsg;
+                                            
+                                            // If it keeps failing, log diagnostics
+                                            if (failedTiles[key].failures > 2) {
+                                                console.warn(`Persistent failure for tile ${key}:`, failedTiles[key]);
+                                            }
+                                        });
+                                    }
+                                })
+                                .catch(e => console.error('Error fetching tile data:', e));
+                        }
+                        
+                        done(err, tile);
+                    });
+                    
+                    return tile;
+                };
+                
                 // Add debugging for LINZ layer
                 linzLayer.on('tileerror', function(error) {
-                    console.error('LINZ tile error:', error.tile.src);
+                    // Log the original URL, not the fallback transparent image
+                    const originalUrl = error.tile._url || error.tile.src;
+                    console.error('LINZ tile error URL:', originalUrl);
                     
                     // Check if we're in NZ bounds - if not, this is expected
                     if (error.coords) {
-                        const point = map.project(L.latLng(error.coords.y, error.coords.x), error.coords.z);
-                        const nwPoint = map.project(L.latLng(-34.0, 166.5), error.coords.z);
-                        const sePoint = map.project(L.latLng(-47.5, 178.5), error.coords.z);
+                        const z = error.coords.z;
+                        const x = error.coords.x;
+                        const y = error.coords.y;
+                        const key = `${z}_${x}_${y}`;
+                        
+                        // NZ bounds in lat/lng
+                        const nzBounds = [[-47.5, 166.5], [-34.0, 178.5]];
+                        
+                        // Convert NZ bounds to tile coordinates at the current zoom level
+                        const nwTile = latLngToTile(nzBounds[1][0], nzBounds[0][1], z); // Northwest corner (top-left)
+                        const seTile = latLngToTile(nzBounds[0][0], nzBounds[1][1], z); // Southeast corner (bottom-right)
                         
                         // Check if the tile is within NZ bounds
-                        const inNZ = point.x >= nwPoint.x && 
-                                    point.x <= sePoint.x && 
-                                    point.y >= nwPoint.y && 
-                                    point.y <= sePoint.y;
+                        const inNZ = x >= nwTile.x && x <= seTile.x && 
+                                    y >= nwTile.y && y <= seTile.y;
                                     
                         if (!inNZ) {
-                            console.log('Tile outside of New Zealand bounds - expected to fail');
+                            console.log(`Tile (${x},${y},${z}) outside of New Zealand bounds - expected to fail`);
                             return;
                         }
-                    }
-                    
-                    // For tiles within NZ that failed, we might want to retry once with a delay
-                    if (!error.tile._retryCount || error.tile._retryCount < 1) {
-                        error.tile._retryCount = (error.tile._retryCount || 0) + 1;
-                        setTimeout(function() {
-                            error.tile.src = error.tile.src.replace(/\?t=\d+/, '') + '?t=' + new Date().getTime();
-                        }, 1000);
+                        
+                        console.log(`Tile (${x},${y},${z}) is within New Zealand but failed to load`);
+                        
+                        // Only try fallback logic if we haven't tried multiple times already
+                        if (!failedTiles[key] || failedTiles[key].failures <= 1) {
+                            // Try with demo key if this is the first or second failure
+                            if (linzApiKey !== linzDemoKey) {
+                                console.log(`Trying with demo API key for tile ${key}...`);
+                                
+                                // Update tracking
+                                if (!failedTiles[key]) {
+                                    failedTiles[key] = { failures: 1 };
+                                }
+                                
+                                // Replace the current API key with the demo key
+                                const currentKey = encodeURIComponent(linzApiKey);
+                                const demoKeyEncoded = encodeURIComponent(linzDemoKey);
+                                
+                                // Get the original URL before any modifications
+                                let urlToUse = originalUrl;
+                                if (!urlToUse) {
+                                    // Construct URL if original is not available
+                                    urlToUse = `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/${z}/${x}/${y}.webp?api=${currentKey}`;
+                                }
+                                
+                                // Replace the API key
+                                const newSrc = urlToUse.replace(
+                                    new RegExp(`api=${currentKey}(&|$)`), 
+                                    `api=${demoKeyEncoded}$1`
+                                );
+                                
+                                if (newSrc !== error.tile.src) {
+                                    error.tile.src = newSrc;
+                                    return;
+                                }
+                            }
+                        }
                     }
                 });
+                
+                // Helper function to convert lat/lng to tile coordinates
+                function latLngToTile(lat, lng, zoom) {
+                    // Convert lat/lng to tile coordinates
+                    const n = Math.pow(2, zoom);
+                    const xTile = Math.floor((lng + 180) / 360 * n);
+                    const latRad = lat * Math.PI / 180;
+                    const yTile = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+                    return { x: xTile, y: yTile };
+                }
                 
                 linzLayer.on('tileload', function(tile) {
                     console.log('LINZ tile loaded successfully', tile.coords);
@@ -463,8 +568,8 @@
                     "Hybrid": hybridLayer
                 };
 
-                // Add default layer (Hybrid)
-                hybridLayer.addTo(map);
+                // Add default layer (LINZ)
+                linzLayer.addTo(map);
 
                 // Add layer control to map
                 L.control.layers(baseMaps, null, {
