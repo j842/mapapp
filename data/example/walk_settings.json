@@ -7,7 +7,7 @@
         [-45.822450, 170.442179],
         [-45.821617, 170.443053]
     ],
-    "images": [
+    "trailImages": [
         {
             "coordinates": [-45.817922, 170.432043],
             "imageName": "trail_start.jpg",
@@ -22,6 +22,18 @@
             "coordinates": [-45.821617, 170.443053],
             "imageName": "waterfall.jpg",
             "notes": "Cascading waterfall along the trail"
+        }
+    ],
+    "pointsOfInterest": [
+        {
+            "coordinates": [-45.819500, 170.437200],
+            "imageName": "rock_formation.jpg",
+            "notes": "Interesting rock formation just off the main trail"
+        },
+        {
+            "coordinates": [-45.823100, 170.440800],
+            "imageName": "historic_marker.jpg",
+            "notes": "Historic marker describing the area's mining history"
         }
     ]
 } 

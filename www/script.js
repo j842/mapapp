@@ -164,7 +164,8 @@ async function loadSettings() {
         let settings = {
             title: 'Trail Map',
             trailPath: [],
-            images: []
+            trailImages: [],
+            pointsOfInterest: []
         };
 
         // Try to load GPX file for trail path
@@ -180,13 +181,29 @@ async function loadSettings() {
         const jsonResponse = await fetch(`/data/${currentWalkId}/walk_settings.json`);
         if (jsonResponse.ok) {
             const jsonData = await jsonResponse.json();
-            settings.images = jsonData.images || [];
-            // Store images array globally for keyboard navigation
-            imagesArray = settings.images;
+            
+            // Support the old 'images' array for backward compatibility
+            if (jsonData.images && jsonData.images.length > 0) {
+                settings.trailImages = jsonData.images;
+            }
+            
+            // Add new image arrays if they exist
+            if (jsonData.trailImages && jsonData.trailImages.length > 0) {
+                settings.trailImages = jsonData.trailImages;
+            }
+            
+            if (jsonData.pointsOfInterest && jsonData.pointsOfInterest.length > 0) {
+                settings.pointsOfInterest = jsonData.pointsOfInterest;
+            }
+            
+            // Store trail images array globally for keyboard navigation
+            imagesArray = settings.trailImages;
+            
             // Use JSON title if available or if we don't have a GPX title
             if (jsonData.title && (!settings.title || settings.title === 'Trail Map')) {
                 settings.title = jsonData.title;
             }
+            
             // Add any additional settings from the walk_settings.json
             settings = { ...settings, ...jsonData };
         }
@@ -252,10 +269,83 @@ function latLngToTile(lat, lng, zoom) {
     return { x: xTile, y: yTile };
 }
 
+// Function to create mini map for the popup
+function createMiniMap(coordinates, container) {
+    // Create a container for the mini map
+    const mapContainer = document.createElement('div');
+    mapContainer.className = 'mini-map';
+    mapContainer.style.width = '120px';
+    mapContainer.style.height = '120px';
+    container.appendChild(mapContainer);
+    
+    // Create mini map with the same base layer as the main map
+    const miniMap = L.map(mapContainer, {
+        attributionControl: false,
+        zoomControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        tap: false,
+        keyboard: false,
+        touchZoom: false
+    });
+    
+    // Get the currently selected layer from the main map
+    let activeBaseLayer = null;
+    map.eachLayer(function(layer) {
+        if (layer instanceof L.TileLayer) {
+            activeBaseLayer = layer;
+        }
+    });
+    
+    // Clone the layer for the mini map
+    let miniMapLayer;
+    if (activeBaseLayer) {
+        miniMapLayer = L.tileLayer(activeBaseLayer._url, activeBaseLayer.options);
+    } else {
+        // Fallback to OpenStreetMap
+        miniMapLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        });
+    }
+    
+    miniMapLayer.addTo(miniMap);
+    
+    // Add trail path to mini map
+    if (settings.trailPath && settings.trailPath.length > 0) {
+        const trailLine = L.polyline(settings.trailPath, {
+            color: '#3498db',
+            weight: 3,
+            opacity: 0.7
+        }).addTo(miniMap);
+    }
+    
+    // Add marker for the image location
+    const marker = L.circleMarker(coordinates, {
+        radius: 6,
+        color: '#e74c3c',
+        fillColor: '#e74c3c',
+        fillOpacity: 1,
+        weight: 2
+    }).addTo(miniMap);
+    
+    // Fit to include both the marker and the trail
+    const bounds = L.latLngBounds([coordinates]);
+    if (settings.trailPath && settings.trailPath.length > 0) {
+        bounds.extend(settings.trailPath);
+    }
+    miniMap.fitBounds(bounds, {
+        padding: [20, 20]
+    });
+    
+    return miniMap;
+}
+
 // Show image popup
-async function showImagePopup(image, fromKeyNavigation = false) {
-    // Find the index of the current image
-    if (!fromKeyNavigation) {
+async function showImagePopup(image, fromKeyNavigation = false, isPointOfInterest = false) {
+    // If this is a point of interest, don't update the sequential navigation
+    if (!isPointOfInterest && !fromKeyNavigation) {
         currentImageIndex = imagesArray.findIndex(img => 
             img.imageName === image.imageName && 
             img.coordinates[0] === image.coordinates[0] && 
@@ -264,13 +354,18 @@ async function showImagePopup(image, fromKeyNavigation = false) {
 
     const popup = document.getElementById('image-popup');
     const popupContent = document.querySelector('.popup-content');
+    const popupContentContainer = document.querySelector('.popup-content-container');
     const popupImage = document.getElementById('popup-image');
     const popupNotes = document.getElementById('popup-notes');
     const loadingIndicator = document.querySelector('.loading-indicator');
     const imageContainer = document.querySelector('.image-container');
     
-    // Reset classes
+    // Reset popup content
     popupImage.classList.remove('loading', 'error');
+    const existingMiniMap = document.querySelector('.mini-map-container');
+    if (existingMiniMap) {
+        existingMiniMap.remove();
+    }
     
     // Reset container styles
     imageContainer.style.width = '';
@@ -340,8 +435,16 @@ async function showImagePopup(image, fromKeyNavigation = false) {
         // Set notes
         popupNotes.textContent = image.notes || 'Loading...';
         
-        // Add navigation indicators if we have multiple images
-        const navigationHtml = createNavigationHtml();
+        // Create container for the mini map and add it to the image container
+        const miniMapContainer = document.createElement('div');
+        miniMapContainer.className = 'mini-map-container';
+        imageContainer.appendChild(miniMapContainer);
+        
+        // Create mini map
+        const miniMap = createMiniMap(image.coordinates, miniMapContainer);
+        
+        // Add navigation indicators if we have multiple images and this is a trail image
+        const navigationHtml = !isPointOfInterest ? createNavigationHtml() : '';
         popupContent.querySelector('.navigation-controls')?.remove();
         if (navigationHtml) {
             popupContent.insertAdjacentHTML('beforeend', navigationHtml);
@@ -670,12 +773,12 @@ async function initialize() {
         // Fit the map to the buffered bounds
         map.fitBounds(bufferedBounds);
 
-        // Only add image markers if we have images in the settings
-        if (settings.images && settings.images.length > 0) {
-            // Keep track of existing markers to prevent overlaps
-            const existingMarkers = [];
+        // Keep track of existing markers to prevent overlaps
+        const existingMarkers = [];
 
-            settings.images.forEach(image => {
+        // Add trail image markers if we have them in the settings
+        if (settings.trailImages && settings.trailImages.length > 0) {
+            settings.trailImages.forEach(image => {
                 // Calculate offset coordinates to avoid overlapping with trail and other markers
                 const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath, existingMarkers);
                 
@@ -712,7 +815,56 @@ async function initialize() {
                 });
                 
                 // Add click handler to thumbnail
-                thumbnailMarker.on('click', () => showImagePopup(image));
+                thumbnailMarker.on('click', () => showImagePopup(image, false, false));
+                
+                // Add all elements to the map
+                locationMarker.addTo(map);
+                connectionLine.addTo(map);
+                thumbnailMarker.addTo(map);
+            });
+        }
+        
+        // Add points of interest if we have them
+        if (settings.pointsOfInterest && settings.pointsOfInterest.length > 0) {
+            settings.pointsOfInterest.forEach(poi => {
+                // Calculate offset coordinates to avoid overlapping with trail and other markers
+                const offsetCoords = getOffsetCoordinates(poi.coordinates, settings.trailPath, existingMarkers);
+                
+                // Add this marker to the list of existing markers
+                existingMarkers.push({
+                    coords: offsetCoords
+                });
+                
+                // Create custom icon for thumbnail with grayscale effect
+                const thumbnailIcon = L.divIcon({
+                    className: 'custom-icon poi-icon',
+                    html: `<img src="/thumbnail/${currentWalkId}/${poi.imageName}" alt="Point of Interest" class="poi-thumbnail">`,
+                    iconSize: [50, 50],
+                    iconAnchor: [25, 25]
+                });
+
+                // Create marker for thumbnail
+                const thumbnailMarker = L.marker(offsetCoords, { icon: thumbnailIcon });
+                
+                // Create marker for actual location with different style
+                const locationMarker = L.marker(poi.coordinates, {
+                    icon: L.divIcon({
+                        className: 'location-marker poi-location',
+                        iconSize: [12, 12],
+                        iconAnchor: [6, 6]
+                    })
+                });
+
+                // Create line from thumbnail to location with different style
+                const connectionLine = L.polyline([offsetCoords, poi.coordinates], {
+                    color: '#95a5a6', // Gray color for POI
+                    weight: 2,
+                    opacity: 0.7,
+                    dashArray: '5, 5' // Dashed line for POI
+                });
+                
+                // Add click handler to thumbnail passing isPointOfInterest as true
+                thumbnailMarker.on('click', () => showImagePopup(poi, false, true));
                 
                 // Add all elements to the map
                 locationMarker.addTo(map);
