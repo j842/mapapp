@@ -394,21 +394,21 @@ function showImagePopup(image, isNavigating = false) {
         const imageContainer = document.querySelector('.image-container');
         const fullresLink = document.createElement('a');
         fullresLink.className = 'fullres-link';
-        fullresLink.href = `/data/${currentWalkId}/images/${image.imageName}`;
-        fullresLink.target = '_blank';
-        fullresLink.title = 'Open full resolution image in new tab';
-        fullresLink.setAttribute('aria-label', 'Open full resolution image');
+        fullresLink.href = 'javascript:void(0)'; // No longer use a direct link
+        fullresLink.title = 'View full resolution image';
+        fullresLink.setAttribute('aria-label', 'View full resolution image');
         
-        // Add SVG icon for fullscreen/open in new tab
+        // Add SVG icon for fullscreen/expand
         fullresLink.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                <path d="M21 11V3h-8v2h4.6L12 10.6 13.4 12 19 6.4V11h2zm-6 10H3V9h8V7H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8h-2v8z"/>
             </svg>
         `;
         
-        // Prevent propagation to avoid closing the popup when clicking the link
+        // Handle click to show fullscreen image
         fullresLink.addEventListener('click', function(e) {
             e.stopPropagation();
+            showFullscreenImage(image.imageName);
         });
         
         // Add to container
@@ -555,6 +555,32 @@ function handleKeyNavigation(e) {
             }
             break;
     }
+}
+
+// Function to show a full resolution image in a fullscreen popup
+function showFullscreenImage(imageName) {
+    const fullscreenPopup = document.getElementById('fullscreen-popup');
+    const fullscreenImage = document.getElementById('fullscreen-image');
+    
+    // Set loading state
+    fullscreenImage.style.opacity = '0.5';
+    
+    // Start loading the full resolution image
+    fullscreenImage.onload = function() {
+        fullscreenImage.style.opacity = '1';
+    };
+    
+    // Set the source to the original full-size image
+    fullscreenImage.src = `/data/${currentWalkId}/images/${imageName}`;
+    
+    // Show the popup
+    fullscreenPopup.style.display = 'block';
+}
+
+// Function to hide the fullscreen popup
+function hideFullscreenPopup() {
+    const fullscreenPopup = document.getElementById('fullscreen-popup');
+    fullscreenPopup.style.display = 'none';
 }
 
 // Initialize the map and load settings
@@ -917,7 +943,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Add keyboard event listener
+    // Set up fullscreen popup event handlers
+    const fullscreenPopup = document.getElementById('fullscreen-popup');
+    
+    // Close fullscreen popup when clicking on the background
+    fullscreenPopup.addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideFullscreenPopup();
+        }
+    });
+    
+    // Close fullscreen popup when clicking the close button
+    const closeButton = document.querySelector('.fullscreen-close');
+    if (closeButton) {
+        closeButton.addEventListener('click', hideFullscreenPopup);
+    }
+    
+    // Close fullscreen popup with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && fullscreenPopup.style.display === 'block') {
+            hideFullscreenPopup();
+        }
+    });
+    
+    // Add keyboard event listener for navigation
     document.addEventListener('keydown', handleKeyNavigation);
 
     // Initialize the map
