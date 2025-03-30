@@ -274,8 +274,8 @@ function createMiniMap(coordinates, container) {
     // Create a container for the mini map
     const mapContainer = document.createElement('div');
     mapContainer.className = 'mini-map';
-    mapContainer.style.width = '120px';
-    mapContainer.style.height = '120px';
+    mapContainer.style.width = '100px';
+    mapContainer.style.height = '100px';
     container.appendChild(mapContainer);
     
     // Create mini map with the same base layer as the main map
@@ -384,8 +384,8 @@ async function showImagePopup(image, fromKeyNavigation = false, isPointOfInteres
             const imageInfo = await response.json();
             
             // Calculate the right dimensions for the container
-            const viewportWidth = window.innerWidth * 0.8; // 80% of viewport width
-            const viewportHeight = window.innerHeight * 0.7; // 70% of viewport height
+            const viewportWidth = window.innerWidth * 0.75; // 75% of viewport width (reduced from 80%)
+            const viewportHeight = window.innerHeight * 0.6; // 60% of viewport height (reduced from 70%)
             
             // Calculate dimensions while maintaining aspect ratio
             let width, height;

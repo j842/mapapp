@@ -58,17 +58,20 @@ body, html {
     transition: width 0.3s ease, height 0.3s ease;
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 
 .popup-content-container {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
+    justify-content: center;
+    width: 100%;
 }
 
 .image-container {
     position: relative;
-    margin: 0;
+    margin: 0 auto;
     min-width: 200px;
     min-height: 200px;
     background-color: #f1f1f1;
@@ -76,6 +79,7 @@ body, html {
     justify-content: center;
     align-items: center;
     transition: width 0.3s ease, height 0.3s ease;
+    align-self: center;
 }
 
 #image-popup img {
@@ -110,6 +114,15 @@ body, html {
     line-height: 1.5;
     clear: both;
     padding-top: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+    padding: 12px 15px;
+    border-radius: 5px;
+    border-left: 4px solid #3498db;
+    margin-bottom: 10px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .thumbnail-marker {
@@ -223,6 +236,7 @@ body, html {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
 }
 
 .nav-info {
@@ -411,8 +425,8 @@ body, html {
 }
 
 .mini-map {
-    width: 120px;
-    height: 120px;
+    width: 100px;
+    height: 100px;
     border: 2px solid white;
     border-radius: 5px;
     overflow: hidden;
