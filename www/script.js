@@ -259,15 +259,6 @@ async function showImagePopup(image) {
     // Set loading state
     popupImage.classList.add('loading');
     
-    // Set current thumbnail as temporary placeholder
-    popupImage.src = `/thumbnail/${image.imageName}`;
-    
-    // Set notes
-    popupNotes.textContent = image.notes || 'Loading...';
-    
-    // Customize loading message
-    loadingIndicator.textContent = 'Loading full image...';
-    
     try {
         // Fetch image dimensions first
         const response = await fetch(`/image-info/${image.imageName}`);
@@ -303,36 +294,70 @@ async function showImagePopup(image) {
                 }
             }
             
-            // Set dimensions on the container (with some padding)
-            imageContainer.style.width = `${Math.round(width)}px`;
-            imageContainer.style.height = `${Math.round(height)}px`;
+            // Set dimensions on the container
+            const containerWidth = Math.round(width);
+            const containerHeight = Math.round(height);
+            imageContainer.style.width = `${containerWidth}px`;
+            imageContainer.style.height = `${containerHeight}px`;
+            
+            // Pre-size the thumbnail to match the full image dimensions
+            // Create a full-size thumbnail URL that's scaled to the actual dimensions
+            const thumbnailFullsizeUrl = `/thumbnail/${image.imageName}`;
+            popupImage.style.width = `${containerWidth}px`;
+            popupImage.style.height = `${containerHeight}px`;
+            popupImage.style.objectFit = 'cover';
+            
+            // Set thumbnail as the initial image
+            popupImage.src = thumbnailFullsizeUrl;
+        } else {
+            // If we can't get dimensions, just show the thumbnail
+            popupImage.src = `/thumbnail/${image.imageName}`;
         }
+        
+        // Set notes
+        popupNotes.textContent = image.notes || 'Loading...';
+        
+        // Customize loading message
+        loadingIndicator.textContent = 'Loading full image...';
+        
+        // Load the full image in the background
+        const fullImage = new Image();
+        fullImage.onload = function() {
+            // Replace placeholder with full image once loaded
+            // Remove fixed dimensions and let the image display naturally
+            popupImage.style.width = '';
+            popupImage.style.height = '';
+            popupImage.style.objectFit = '';
+            popupImage.src = this.src;
+            popupImage.classList.remove('loading');
+        };
+        
+        fullImage.onerror = function() {
+            console.error('Error loading full image:', image.imageName);
+            // Keep thumbnail as fallback but remove loading state
+            popupImage.classList.remove('loading');
+            popupImage.classList.add('error');
+            popupImage.style.width = '';
+            popupImage.style.height = '';
+            popupImage.style.objectFit = '';
+            
+            loadingIndicator.textContent = 'Failed to load full image';
+            setTimeout(() => {
+                loadingIndicator.style.opacity = '0';
+            }, 2000);
+            popupNotes.textContent = (image.notes || '') + ' (Full image could not be loaded)';
+        };
+        
+        // Start loading the full image
+        fullImage.src = `data/images/${image.imageName}`;
+        
     } catch (error) {
-        console.error('Error fetching image dimensions:', error);
+        console.error('Error in showImagePopup:', error);
+        // Fallback to simple display if anything goes wrong
+        popupImage.src = `/thumbnail/${image.imageName}`;
+        popupNotes.textContent = image.notes || '';
+        popupImage.classList.remove('loading');
     }
-    
-    // Load the full image in the background
-    const fullImage = new Image();
-    fullImage.onload = function() {
-        // Replace placeholder with full image once loaded
-        popupImage.src = this.src;
-        popupImage.classList.remove('loading');
-    };
-    
-    fullImage.onerror = function() {
-        console.error('Error loading full image:', image.imageName);
-        // Keep thumbnail as fallback if full image fails to load
-        popupImage.classList.remove('loading');
-        popupImage.classList.add('error');
-        loadingIndicator.textContent = 'Failed to load full image';
-        setTimeout(() => {
-            loadingIndicator.style.opacity = '0';
-        }, 2000);
-        popupNotes.textContent = (image.notes || '') + ' (Full image could not be loaded)';
-    };
-    
-    // Start loading the full image
-    fullImage.src = `data/images/${image.imageName}`;
 }
 
 // Initialize the map and load settings

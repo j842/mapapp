@@ -115,8 +115,24 @@ app.get('/thumbnail/:filename', async (req, res) => {
     // Save metadata to file
     fs.writeFileSync(metadataPath, JSON.stringify(imageInfo));
     
-    // Generate thumbnail
-    await image.clone().resize(50, 50, { fit: 'cover' }).toFile(thumbnailPath);
+    // Generate a thumbnail that's 200px on the longest side
+    // This is higher quality than 50x50 and will look better when scaled up
+    const SIZE = 200;
+    
+    let resizeOptions;
+    if (metadata.width > metadata.height) {
+      // Landscape
+      resizeOptions = { width: SIZE, height: Math.round(SIZE / imageInfo.aspectRatio), fit: 'cover' };
+    } else {
+      // Portrait or square
+      resizeOptions = { width: Math.round(SIZE * imageInfo.aspectRatio), height: SIZE, fit: 'cover' };
+    }
+    
+    // Generate thumbnail with better quality settings
+    await image.clone()
+      .resize(resizeOptions)
+      .webp({ quality: 80 }) // Use WebP for better compression/quality ratio
+      .toFile(thumbnailPath);
     
     // Serve the newly created thumbnail
     res.sendFile(thumbnailPath);

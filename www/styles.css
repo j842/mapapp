@@ -75,13 +75,13 @@ body, html {
     max-height: 100%;
     display: block;
     margin: 0 auto;
-    transition: filter 0.3s ease, opacity 0.3s ease;
+    transition: filter 0.3s ease, opacity 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
 #image-popup img.loading {
     /* Apply smoothing to the thumbnail being scaled up */
-    filter: blur(2px);
-    animation: pulse 1.5s infinite;
+    filter: blur(1px);
+    animation: pulse 2s infinite;
 }
 
 #image-popup img.error {
@@ -90,9 +90,9 @@ body, html {
 }
 
 @keyframes pulse {
-    0% { opacity: 0.8; }
-    50% { opacity: 1; }
-    100% { opacity: 0.8; }
+    0% { opacity: 0.7; }
+    50% { opacity: 0.9; }
+    100% { opacity: 0.7; }
 }
 
 #popup-notes {
