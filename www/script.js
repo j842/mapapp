@@ -482,7 +482,7 @@ async function initialize() {
                 // Create custom icon for thumbnail
                 const thumbnailIcon = L.divIcon({
                     className: 'custom-icon',
-                    html: `<img src="data/images/${image.imageName}" alt="Trail Image">`,
+                    html: `<img src="/thumbnail/${image.imageName}" alt="Trail Image">`,
                     iconSize: [50, 50],
                     iconAnchor: [25, 25]
                 });

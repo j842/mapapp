@@ -16,6 +16,16 @@ sed -i "s/LINZ_API_KEY_PLACEHOLDER/$LINZ_API_KEY/g" /usr/share/nginx/html/script
 # Ensure logs directory exists
 mkdir -p /var/log/nginx
 
+# Ensure thumbnails directory is accessible
+echo "Ensuring thumbnails directory has correct permissions..."
+mkdir -p /thumbnails
+chown -R nginx:nginx /thumbnails
+chmod 755 /thumbnails
+
+# Create nginx cache directory
+mkdir -p /var/cache/nginx/thumbnails
+chown -R nginx:nginx /var/cache/nginx
+
 # Test direct connection to LINZ API
 echo "Testing LINZ API connection directly from container..."
 if which curl > /dev/null; then
@@ -24,6 +34,13 @@ else
   echo "curl not installed, skipping API test"
 fi
 
-# Start Nginx
+# Start thumbnail service in the background
+echo "Starting thumbnail service..."
+cd /app && node www/thumbnail-service.js &
+
+# Wait a moment for the service to start
+sleep 2
+
+# Start Nginx in the foreground
 echo "Starting Nginx..."
 exec nginx -g 'daemon off;' 
