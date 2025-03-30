@@ -18,9 +18,9 @@ mkdir -p /var/log/nginx
 
 # Ensure thumbnails directory is accessible
 echo "Ensuring thumbnails directory has correct permissions..."
-mkdir -p /thumbnails
+mkdir -p /thumbnails/metadata
 chown -R nginx:nginx /thumbnails
-chmod 755 /thumbnails
+chmod 755 /thumbnails /thumbnails/metadata
 
 # Create nginx cache directory
 mkdir -p /var/cache/nginx/thumbnails

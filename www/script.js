@@ -238,14 +238,20 @@ function latLngToTile(lat, lng, zoom) {
 }
 
 // Show image popup
-function showImagePopup(image) {
+async function showImagePopup(image) {
     const popup = document.getElementById('image-popup');
+    const popupContent = document.querySelector('.popup-content');
     const popupImage = document.getElementById('popup-image');
     const popupNotes = document.getElementById('popup-notes');
     const loadingIndicator = document.querySelector('.loading-indicator');
+    const imageContainer = document.querySelector('.image-container');
     
     // Reset classes
     popupImage.classList.remove('loading', 'error');
+    
+    // Reset container styles
+    imageContainer.style.width = '';
+    imageContainer.style.height = '';
     
     // Display popup immediately with loading state
     popup.style.display = 'block';
@@ -261,6 +267,49 @@ function showImagePopup(image) {
     
     // Customize loading message
     loadingIndicator.textContent = 'Loading full image...';
+    
+    try {
+        // Fetch image dimensions first
+        const response = await fetch(`/image-info/${image.imageName}`);
+        if (response.ok) {
+            const imageInfo = await response.json();
+            
+            // Calculate the right dimensions for the container
+            const viewportWidth = window.innerWidth * 0.8; // 80% of viewport width
+            const viewportHeight = window.innerHeight * 0.7; // 70% of viewport height
+            
+            // Calculate dimensions while maintaining aspect ratio
+            let width, height;
+            
+            if (imageInfo.width > imageInfo.height) {
+                // Landscape image
+                width = Math.min(imageInfo.width, viewportWidth);
+                height = width / imageInfo.aspectRatio;
+                
+                // Check if height exceeds viewport height
+                if (height > viewportHeight) {
+                    height = viewportHeight;
+                    width = height * imageInfo.aspectRatio;
+                }
+            } else {
+                // Portrait or square image
+                height = Math.min(imageInfo.height, viewportHeight);
+                width = height * imageInfo.aspectRatio;
+                
+                // Check if width exceeds viewport width
+                if (width > viewportWidth) {
+                    width = viewportWidth;
+                    height = width / imageInfo.aspectRatio;
+                }
+            }
+            
+            // Set dimensions on the container (with some padding)
+            imageContainer.style.width = `${Math.round(width)}px`;
+            imageContainer.style.height = `${Math.round(height)}px`;
+        }
+    } catch (error) {
+        console.error('Error fetching image dimensions:', error);
+    }
     
     // Load the full image in the background
     const fullImage = new Image();
