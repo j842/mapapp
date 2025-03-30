@@ -256,6 +256,16 @@ body, html {
     outline-offset: 2px;
 }
 
+.nav-buttons button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.nav-buttons button:disabled:hover {
+    background-color: #bdc3c7;
+}
+
 @media (max-width: 480px) {
     .nav-buttons {
         flex-direction: column;
@@ -392,7 +402,7 @@ body, html {
     top: 10px;
     left: 10px;
     z-index: 10;
-    opacity: 0.5;
+    opacity: 0.75;
     transition: opacity 0.3s ease;
 }
 

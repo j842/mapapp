@@ -498,15 +498,15 @@ function createNavigationHtml() {
     if (imagesArray.length <= 1 || currentImageIndex < 0) return '';
     
     const totalImages = imagesArray.length;
-    const prevIndex = (currentImageIndex - 1 + totalImages) % totalImages;
-    const nextIndex = (currentImageIndex + 1) % totalImages;
+    const isPrevDisabled = currentImageIndex === 0;
+    const isNextDisabled = currentImageIndex === totalImages - 1;
     
     return `
     <div class="navigation-controls">
         <div class="nav-info">${currentImageIndex + 1} of ${totalImages}</div>
         <div class="nav-buttons">
-            <button class="nav-prev" onclick="navigateImage(${prevIndex})">« Previous</button>
-            <button class="nav-next" onclick="navigateImage(${nextIndex})">Next »</button>
+            <button class="nav-prev" onclick="navigateImage(${currentImageIndex - 1})" ${isPrevDisabled ? 'disabled' : ''}>« Previous</button>
+            <button class="nav-next" onclick="navigateImage(${currentImageIndex + 1})" ${isNextDisabled ? 'disabled' : ''}>Next »</button>
         </div>
         <div class="keyboard-shortcuts">Keyboard: ← previous | → next | ESC close</div>
     </div>
@@ -515,6 +515,7 @@ function createNavigationHtml() {
 
 // Function to navigate between images
 function navigateImage(index) {
+    // Check if the index is valid (within bounds)
     if (index >= 0 && index < imagesArray.length) {
         currentImageIndex = index;
         showImagePopup(imagesArray[index], true);
@@ -531,21 +532,21 @@ function handleKeyNavigation(e) {
     // Make sure we have images to navigate through
     if (imagesArray.length <= 1 || currentImageIndex < 0) return;
     
-    const totalImages = imagesArray.length;
-    
     switch (e.key) {
         case 'ArrowLeft':
-            // Previous image
-            const prevIndex = (currentImageIndex - 1 + totalImages) % totalImages;
-            navigateImage(prevIndex);
-            e.preventDefault();
+            // Previous image (if not at the first image)
+            if (currentImageIndex > 0) {
+                navigateImage(currentImageIndex - 1);
+                e.preventDefault();
+            }
             break;
             
         case 'ArrowRight':
-            // Next image
-            const nextIndex = (currentImageIndex + 1) % totalImages;
-            navigateImage(nextIndex);
-            e.preventDefault();
+            // Next image (if not at the last image)
+            if (currentImageIndex < imagesArray.length - 1) {
+                navigateImage(currentImageIndex + 1);
+                e.preventDefault();
+            }
             break;
             
         case 'Escape':

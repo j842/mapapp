@@ -113,13 +113,31 @@ async function createWalkCard(walkId) {
         `;
     }
     
+    // Calculate total photo count (including traditional images, trail images, and points of interest)
+    let photoCount = 0;
+    
+    // Count images from the legacy 'images' array
+    if (settings.images && Array.isArray(settings.images)) {
+        photoCount += settings.images.length;
+    }
+    
+    // Count trail images
+    if (settings.trailImages && Array.isArray(settings.trailImages)) {
+        photoCount += settings.trailImages.length;
+    }
+    
+    // Count points of interest
+    if (settings.pointsOfInterest && Array.isArray(settings.pointsOfInterest)) {
+        photoCount += settings.pointsOfInterest.length;
+    }
+    
     walkCard.innerHTML = `
         ${imageHtml}
         <div class="walk-card-content">
             <div class="walk-card-title">${settings.title || walkId}</div>
             <div class="walk-card-description">${settings.description || 'No description available'}</div>
             <div class="walk-card-stats">
-                <span>${settings.images ? settings.images.length : 0} photos</span>
+                <span>${photoCount} photos</span>
                 <span>Updated: ${fileDate}</span>
             </div>
         </div>
