@@ -401,8 +401,19 @@ function showImagePopup(image, isNavigating = false) {
         // Show the popup
         popup.style.display = 'block';
         
-        // Add fullres link to open original image in new tab
+        // Make the popup image clickable to show fullscreen version
         const imageContainer = document.querySelector('.image-container');
+        
+        // Add new click handler for the image
+        popupImage.onclick = function(e) {
+            e.stopPropagation(); // Prevent closing the popup
+            showFullscreenImage(image.imageName);
+        };
+        
+        // Add cursor style to indicate clickability
+        popupImage.style.cursor = 'zoom-in';
+        
+        // Add fullres link to open original image in new tab
         const fullresLink = document.createElement('a');
         fullresLink.className = 'fullres-link';
         fullresLink.href = 'javascript:void(0)'; // No longer use a direct link

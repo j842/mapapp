@@ -95,6 +95,11 @@ body, html {
     margin: 0 auto;
     object-fit: contain !important;
     -ms-interpolation-mode: bicubic; /* Improve image scaling in Edge/IE */
+    transition: transform 0.2s ease;
+}
+
+#image-popup img:hover {
+    transform: scale(1.02);
 }
 
 #image-popup img.loading {
