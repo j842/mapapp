@@ -476,7 +476,7 @@ function createNavigationHtml() {
             <button class="nav-prev" onclick="navigateImage(${currentImageIndex - 1})" ${isPrevDisabled ? 'disabled' : ''}>« Previous</button>
             <button class="nav-next" onclick="navigateImage(${currentImageIndex + 1})" ${isNextDisabled ? 'disabled' : ''}>Next »</button>
         </div>
-        <div class="keyboard-shortcuts">Keyboard: ← previous | → next | ESC close</div>
+        <div class="keyboard-shortcuts">Keyboard: ← previous | → next | ESC or Enter close</div>
     </div>
     `;
 }
@@ -497,7 +497,15 @@ function handleKeyNavigation(e) {
     // Only process keyboard events when popup is visible
     if (popup.style.display !== 'block') return;
     
-    // Make sure we have trail images to navigate through and the current image is a trail image
+    // First handle keys that should work for all popups
+    if (e.key === 'Escape' || e.key === 'Enter') {
+        // Close popup with Escape or Enter keys
+        popup.style.display = 'none';
+        e.preventDefault();
+        return;
+    }
+    
+    // Only handle navigation keys for trail images
     if (!imagesArray || imagesArray.length <= 1 || currentImageIndex < 0) return;
     
     switch (e.key) {
@@ -515,12 +523,6 @@ function handleKeyNavigation(e) {
                 navigateImage(currentImageIndex + 1);
                 e.preventDefault();
             }
-            break;
-            
-        case 'Escape':
-            // Close popup
-            popup.style.display = 'none';
-            e.preventDefault();
             break;
     }
 }
