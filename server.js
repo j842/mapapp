@@ -9,8 +9,25 @@ const readdir = promisify(fs.readdir);
 const stat = promisify(fs.stat);
 const PORT = process.env.PORT || 3000;
 
-// Serve static files
-app.use(express.static('www'));
+// Serve static files with caching
+app.use(express.static('www', {
+    maxAge: '7d', // Cache static assets for 7 days
+    setHeaders: function(res, path) {
+        // Add specific cache headers for different file types
+        if (path.endsWith('.css') || path.endsWith('.js')) {
+            res.setHeader('Cache-Control', 'public, max-age=604800'); // 7 days
+        } else if (path.endsWith('.jpg') || path.endsWith('.jpeg') || 
+                  path.endsWith('.png') || path.endsWith('.webp') || 
+                  path.endsWith('.svg') || path.endsWith('.ico')) {
+            res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30 days
+        } else if (path.endsWith('.html')) {
+            // Don't cache HTML files
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
 
 // Helper function to check if path is a directory
 async function isDirectory(path) {
@@ -45,6 +62,9 @@ app.get('/api/walks', async (req, res) => {
             console.error(`Data directory not found at ${DATA_DIR}`);
             return res.status(500).json({ error: 'Data directory not found' });
         }
+        
+        // Set cache headers (1 hour)
+        res.setHeader('Cache-Control', 'public, max-age=3600');
         
         const entries = await readdir(DATA_DIR);
         console.log(`Found ${entries.length} entries in data directory`);
@@ -120,6 +140,9 @@ app.get('/image-info/:walkId/:image', async (req, res) => {
             return res.status(404).json({ error: 'Image not found' });
         }
         
+        // Set cache headers (7 days)
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        
         // Get image metadata
         const metadata = await sharp(imagePath).metadata();
         
@@ -139,7 +162,20 @@ app.get('/image-info/:walkId/:image', async (req, res) => {
 });
 
 // Serve data files directly
-app.use('/data', express.static(DATA_DIR));
+app.use('/data', express.static(DATA_DIR, {
+    maxAge: '7d', // Cache for 7 days
+    setHeaders: function(res, path) {
+        // For images, allow caching for 30 days
+        if (path.endsWith('.jpg') || path.endsWith('.jpeg') || 
+            path.endsWith('.png') || path.endsWith('.webp')) {
+            res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30 days
+        }
+        // For JSON files, shorter cache time
+        else if (path.endsWith('.json')) {
+            res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
+        }
+    }
+}));
 
 // Serve the walk.html for walk-specific routes
 app.get('/walk.html', (req, res) => {
@@ -165,6 +201,9 @@ app.get('/api/walk-info/:walkId', async (req, res) => {
         if (!fs.existsSync(settingsPath)) {
             return res.status(404).json({ error: 'Walk settings not found' });
         }
+        
+        // Set cache headers (1 day)
+        res.setHeader('Cache-Control', 'public, max-age=86400');
         
         // Get file stats
         const stats = await stat(settingsPath);
