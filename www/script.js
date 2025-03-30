@@ -384,8 +384,19 @@ function showImagePopup(image, isNavigating = false) {
         // Reset any previous error state
         popupImage.classList.remove('error');
         
-        // Set notes (also escaping any HTML)
-        popupNotes.textContent = image.notes || '';
+        // Determine if this is a trail image or point of interest
+        // Check if this image belongs to the trail images array
+        const isTrailImage = currentImageIndex >= 0;
+        
+        // Set notes with image number for trail images
+        if (isTrailImage) {
+            // Create notes with sequence number
+            const sequenceNum = currentImageIndex + 1;
+            popupNotes.innerHTML = `<span class="image-sequence">${sequenceNum}</span>${image.notes || ''}`;
+        } else {
+            // For POIs, just show the notes
+            popupNotes.textContent = image.notes || '';
+        }
         
         // Show the popup
         popup.style.display = 'block';
@@ -418,10 +429,6 @@ function showImagePopup(image, isNavigating = false) {
         if (map && settings.trailPath) {
             createMiniMap(image.coordinates);
         }
-        
-        // Determine if this is a trail image or point of interest
-        // Check if this image belongs to the trail images array
-        const isTrailImage = currentImageIndex >= 0;
         
         // Only show navigation controls for trail images, not for POIs
         let navigationHtml = '';
@@ -808,7 +815,7 @@ async function initialize() {
             // Set the global imagesArray to the trail images for navigation
             imagesArray = settings.trailImages;
             
-            settings.trailImages.forEach(image => {
+            settings.trailImages.forEach((image, index) => {
                 // Calculate offset coordinates to avoid overlapping with trail and other markers
                 const offsetCoords = getOffsetCoordinates(image.coordinates, settings.trailPath, existingMarkers);
                 
@@ -817,12 +824,17 @@ async function initialize() {
                     coords: offsetCoords
                 });
                 
-                // Create custom icon for thumbnail
+                // Create custom icon for thumbnail with image number overlay
                 const thumbnailIcon = L.divIcon({
                     className: 'custom-icon',
-                    html: `<img src="/thumbnail/${currentWalkId}/${image.imageName}" alt="Trail Image">`,
-                    iconSize: [50, 50],
-                    iconAnchor: [25, 25]
+                    html: `
+                        <div style="position: relative;">
+                            <img src="/thumbnail/${currentWalkId}/${image.imageName}" alt="Trail Image">
+                            <div class="image-number">${index + 1}</div>
+                        </div>
+                    `,
+                    iconSize: [55, 55],
+                    iconAnchor: [27, 27]
                 });
 
                 // Create marker for thumbnail
@@ -843,6 +855,9 @@ async function initialize() {
                     weight: 2,
                     opacity: 0.8
                 });
+                
+                // Store the index with the image for reference
+                image.index = index;
                 
                 // Add click handler to thumbnail
                 thumbnailMarker.on('click', () => {

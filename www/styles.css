@@ -132,8 +132,8 @@ body, html {
 }
 
 .thumbnail-marker {
-    width: 50px;
-    height: 50px;
+    width: 55px;
+    height: 55px;
     border-radius: 5px;
     cursor: pointer;
     border: 2px solid white;
@@ -152,8 +152,8 @@ body, html {
 }
 
 .custom-icon img {
-    width: 50px;
-    height: 50px;
+    width: 55px;
+    height: 55px;
     border-radius: 5px;
     border: 2px solid white;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
@@ -538,4 +538,36 @@ body, html {
 
 .poi-location {
     background-color: #95a5a6; /* Gray for POI location markers */
+}
+
+.image-number {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 20px;
+    height: 20px;
+    background-color: #3498db;
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border: 1px solid white;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.image-sequence {
+    display: inline-block;
+    background-color: #3498db;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 8px;
+    vertical-align: middle;
 }
