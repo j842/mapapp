@@ -308,6 +308,34 @@ body, html {
     height: 200px;
     object-fit: cover;
     border-bottom: 1px solid #eee;
+    max-width: 100%;
+    background-color: #f8f8f8;
+    transition: opacity 0.3s ease;
+}
+
+.walk-card-image.loading {
+    opacity: 0.6;
+    animation: pulse-bg 2s infinite;
+}
+
+.walk-card-image.error {
+    opacity: 0.8;
+    border-bottom: 2px solid #e74c3c;
+}
+
+@keyframes pulse-bg {
+    0% { background-color: #f8f8f8; }
+    50% { background-color: #eaeaea; }
+    100% { background-color: #f8f8f8; }
+}
+
+.walk-card-image-placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f1f1f1;
+    color: #95a5a6;
+    font-style: italic;
 }
 
 .walk-card-content {

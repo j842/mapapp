@@ -99,8 +99,8 @@ async function createWalkCard(walkId) {
     if (coverImage) {
         imageHtml = `
             <img 
-                class="walk-card-image" 
-                src="/thumbnail/${walkId}/${coverImage}" 
+                class="walk-card-image loading" 
+                src="/data/${walkId}/images/${coverImage}" 
                 alt="${settings.title || walkId}"
             >
         `;
@@ -124,6 +124,20 @@ async function createWalkCard(walkId) {
             </div>
         </div>
     `;
+    
+    // Add image load handler
+    if (coverImage) {
+        const img = walkCard.querySelector('.walk-card-image');
+        img.onload = function() {
+            this.classList.remove('loading');
+        };
+        img.onerror = function() {
+            this.classList.remove('loading');
+            this.classList.add('error');
+            // Fall back to thumbnail if full image fails
+            this.src = `/thumbnail/${walkId}/${coverImage}`;
+        };
+    }
     
     // Add click event to navigate to the walk page
     walkCard.addEventListener('click', function(e) {
