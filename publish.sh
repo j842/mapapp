@@ -6,14 +6,13 @@ set -e
 # Change to the directory where this script is located
 cd "$(dirname "$0")"
 
-# Define version file and read current version
-VERSION_FILE=".version"
-VERSION=$(cat $VERSION_FILE)
+# Get version from package.json
+VERSION=$(grep -o '"version": "[^"]*"' package.json | cut -d'"' -f4)
 
-echo "Publishing Map App Docker Image (version $VERSION and latest)"
+echo "Publishing Trail Map Viewer Docker Image (version ${VERSION} and latest)"
 
 # Push both the versioned image and latest tag
-docker push registry.jde.nz/mapapp:$VERSION
+docker push registry.jde.nz/mapapp:${VERSION}
 docker push registry.jde.nz/mapapp:latest
 
-echo "Published Map App Docker Image version $VERSION and latest tag"
+echo "Published Trail Map Viewer Docker Image version ${VERSION} and latest tag"

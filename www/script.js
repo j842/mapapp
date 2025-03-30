@@ -634,6 +634,11 @@ async function initialize() {
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Get application version - will be replaced by the docker-entrypoint.sh script
+    const APP_VERSION = 'v1.0.0';
+    const BUILD_DATE = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    document.getElementById('version-display').textContent = `${APP_VERSION} (${BUILD_DATE})`;
+    
     // Close popup when clicking anywhere
     document.getElementById('image-popup').addEventListener('click', function(e) {
         if (e.target === this) {

@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+# Get version from package.json
+APP_VERSION=$(grep -o '"version": "[^"]*"' /app/package.json | cut -d'"' -f4)
+BUILD_DATE=$(date +%Y-%m-%d)
+echo "Application version: ${APP_VERSION} (${BUILD_DATE})"
+
 # Determine the API key to use (default if not provided)
 if [ -z "$LINZ_API_KEY" ]; then
   export LINZ_API_KEY="d01jrm3t2gzdycm5j8rh03e69fw"
@@ -12,6 +17,14 @@ fi
 # Replace the API key placeholder in script.js
 echo "Updating script.js with the LINZ API key..."
 sed -i "s/LINZ_API_KEY_PLACEHOLDER/$LINZ_API_KEY/g" /usr/share/nginx/html/script.js
+
+# Replace version number in script.js
+echo "Updating script.js with application version..."
+sed -i "s/const APP_VERSION = 'v[0-9.]*';/const APP_VERSION = 'v${APP_VERSION}';/g" /usr/share/nginx/html/script.js
+
+# Replace build date in script.js
+echo "Updating script.js with build date..."
+sed -i "s/const BUILD_DATE = new Date().toISOString().split('T')\[0\];/const BUILD_DATE = '${BUILD_DATE}';/g" /usr/share/nginx/html/script.js
 
 # Ensure logs directory exists
 mkdir -p /var/log/nginx
