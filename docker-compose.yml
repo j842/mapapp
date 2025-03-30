@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  mapapp:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      - LINZ_API_KEY=d01jrm3t2gzdycm5j8rh03e69fw  # Demo key by default, replace with your own
+    volumes:
+      - ./data:/data  # Mount the data directory to store walks
+    restart: unless-stopped 

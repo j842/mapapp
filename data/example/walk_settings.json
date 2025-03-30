@@ -1,9 +1,11 @@
 {
     "title": "Scenic Mountain Trail",
+    "description": "A beautiful scenic trail through alpine mountains with panoramic views of the valley below. Perfect for a day hike with moderate difficulty.",
+    "coverImage": "viewpoint.jpg",
     "trailPath": [
-        [47.6088, -122.3299],
-        [47.6101, -122.3288],
-        [47.6114, -122.3277]
+        [-45.817922, 170.432043],
+        [-45.822450, 170.442179],
+        [-45.821617, 170.443053]
     ],
     "images": [
         {

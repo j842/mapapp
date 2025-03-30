@@ -3,6 +3,7 @@ let settings;
 let coordinatesPopup;
 let currentImageIndex = -1;
 let imagesArray = [];
+let currentWalkId = null;
 
 // Function to calculate offset coordinates
 function getOffsetCoordinates(coords, trailPath, existingMarkers = []) {
@@ -152,6 +153,14 @@ async function parseGPX(gpxText) {
 // Function to load settings from JSON and GPX files
 async function loadSettings() {
     try {
+        // Parse URL parameters to get walk ID
+        const urlParams = new URLSearchParams(window.location.search);
+        currentWalkId = urlParams.get('id');
+        
+        if (!currentWalkId) {
+            throw new Error('No walk ID specified in URL parameters');
+        }
+        
         let settings = {
             title: 'Trail Map',
             trailPath: [],
@@ -159,7 +168,7 @@ async function loadSettings() {
         };
 
         // Try to load GPX file for trail path
-        const gpxResponse = await fetch('data/trail.gpx');
+        const gpxResponse = await fetch(`/data/${currentWalkId}/trail.gpx`);
         if (gpxResponse.ok) {
             const gpxText = await gpxResponse.text();
             const gpxData = await parseGPX(gpxText);
@@ -168,16 +177,18 @@ async function loadSettings() {
         }
 
         // Try to load JSON file for images and title (if no GPX title)
-        const jsonResponse = await fetch('data/walk_settings.json');
+        const jsonResponse = await fetch(`/data/${currentWalkId}/walk_settings.json`);
         if (jsonResponse.ok) {
             const jsonData = await jsonResponse.json();
             settings.images = jsonData.images || [];
             // Store images array globally for keyboard navigation
             imagesArray = settings.images;
-            // Only use JSON title if we don't have a GPX title
-            if (!settings.trailPath.length) {
+            // Use JSON title if available or if we don't have a GPX title
+            if (jsonData.title && (!settings.title || settings.title === 'Trail Map')) {
                 settings.title = jsonData.title;
             }
+            // Add any additional settings from the walk_settings.json
+            settings = { ...settings, ...jsonData };
         }
 
         // Validate that we have at least a trail path
@@ -273,7 +284,7 @@ async function showImagePopup(image, fromKeyNavigation = false) {
     
     try {
         // Fetch image dimensions first
-        const response = await fetch(`/image-info/${image.imageName}`);
+        const response = await fetch(`/image-info/${currentWalkId}/${image.imageName}`);
         if (response.ok) {
             const imageInfo = await response.json();
             
@@ -314,7 +325,7 @@ async function showImagePopup(image, fromKeyNavigation = false) {
             
             // Pre-size the thumbnail to match the full image dimensions
             // Create a full-size thumbnail URL that's scaled to the actual dimensions
-            const thumbnailFullsizeUrl = `/thumbnail/${image.imageName}`;
+            const thumbnailFullsizeUrl = `/thumbnail/${currentWalkId}/${image.imageName}`;
             popupImage.style.width = `${containerWidth}px`;
             popupImage.style.height = `${containerHeight}px`;
             popupImage.style.objectFit = 'cover';
@@ -323,7 +334,7 @@ async function showImagePopup(image, fromKeyNavigation = false) {
             popupImage.src = thumbnailFullsizeUrl;
         } else {
             // If we can't get dimensions, just show the thumbnail
-            popupImage.src = `/thumbnail/${image.imageName}`;
+            popupImage.src = `/thumbnail/${currentWalkId}/${image.imageName}`;
         }
         
         // Set notes
@@ -368,12 +379,12 @@ async function showImagePopup(image, fromKeyNavigation = false) {
         };
         
         // Start loading the full image
-        fullImage.src = `data/images/${image.imageName}`;
+        fullImage.src = `/data/${currentWalkId}/images/${image.imageName}`;
         
     } catch (error) {
         console.error('Error in showImagePopup:', error);
         // Fallback to simple display if anything goes wrong
-        popupImage.src = `/thumbnail/${image.imageName}`;
+        popupImage.src = `/thumbnail/${currentWalkId}/${image.imageName}`;
         popupNotes.textContent = image.notes || '';
         popupImage.classList.remove('loading');
     }
@@ -676,7 +687,7 @@ async function initialize() {
                 // Create custom icon for thumbnail
                 const thumbnailIcon = L.divIcon({
                     className: 'custom-icon',
-                    html: `<img src="/thumbnail/${image.imageName}" alt="Trail Image">`,
+                    html: `<img src="/thumbnail/${currentWalkId}/${image.imageName}" alt="Trail Image">`,
                     iconSize: [50, 50],
                     iconAnchor: [25, 25]
                 });
@@ -711,6 +722,14 @@ async function initialize() {
         }
     } catch (error) {
         console.error('Error initializing map:', error);
+        // Show error on the page
+        document.getElementById('map').innerHTML = `
+            <div class="error-message">
+                <h3>Error loading walk</h3>
+                <p>${error.message}</p>
+                <a href="/" class="back-button">Return to walks list</a>
+            </div>
+        `;
     }
 }
 

@@ -1,10 +1,10 @@
 {
-  "name": "mapapp-thumbnail-service",
-  "version": "1.0.2",
-  "description": "On-demand thumbnail generation service for the Trail Map application",
-  "main": "www/thumbnail-service.js",
+  "name": "trail-map-viewer",
+  "version": "1.0.7",
+  "description": "Trail Map Viewer with support for multiple walks",
+  "main": "server.js",
   "scripts": {
-    "start": "node www/thumbnail-service.js",
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

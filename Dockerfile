@@ -1,8 +1,9 @@
-FROM node:18-alpine AS thumbnail-service
+FROM node:18-alpine AS node-base
 
-# Copy package.json and www directory for Node.js
+# Copy package.json and server files for Node.js
 COPY package.json /app/
-COPY www/thumbnail-service.js /app/www/
+COPY server.js /app/
+COPY www/ /app/www/
 
 # Install dependencies
 WORKDIR /app
@@ -20,24 +21,23 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Copy our web content
 COPY www/ /usr/share/nginx/html/
 
-# Copy package.json and install dependencies
+# Copy server.js and package.json 
 COPY package.json /app/
-COPY www/thumbnail-service.js /app/www/
+COPY server.js /app/
 WORKDIR /app
 RUN npm install
 
-# Copy data files
-COPY data/ /data/
+# Create symbolic link to make data visible to the Node.js app
+RUN ln -s /data /app/data
 
-# Create data directory and thumbnails directory
-RUN mkdir -p /data/images && chown -R nginx:nginx /data
-RUN mkdir -p /thumbnails/metadata && chown -R nginx:nginx /thumbnails
+# Create data directory structure (will be mounted in production)
+RUN mkdir -p /data && chown -R nginx:nginx /data
 
 # Copy and set up entrypoint script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Expose port 80 (Nginx only)
+# Expose ports
 EXPOSE 80
 
 # Use our entrypoint script

@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trail Map Collection</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Trail Map Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
-    <div id="main-header">Trail Map Collection</div>
-    <div id="walks-container" class="walks-grid"></div>
+    <div id="page-title">Trail Map</div>
+    <div id="back-button"><a href="/">« Back to All Walks</a></div>
+    <div id="map"></div>
+    <div id="version-display" class="version-display">v1.0.0</div>
     
     <div id="image-popup" style="display: none;">
         <div class="popup-content">
@@ -20,8 +24,6 @@
         </div>
     </div>
     
-    <div id="version-display" class="version-display">v1.0.0</div>
-    
-    <script src="main.js"></script>
+    <script src="script.js"></script>
 </body>
 </html> 

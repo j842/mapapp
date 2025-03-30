@@ -21,24 +21,36 @@ if [ ! -d "data" ]; then
     exit 1
 fi
 
-# Check if images subdirectory exists
-if [ ! -d "data/images" ]; then
-    echo "Error: data/images directory not found"
-    exit 1
-fi
+# Check for at least one walk subfolder
+WALK_COUNT=0
+for d in data/*/; do
+    if [ -d "$d" ] && [ -f "${d}walk_settings.json" ]; then
+        WALK_COUNT=$((WALK_COUNT + 1))
+        echo "Found walk: ${d}"
+    fi
+done
 
-# Check for either walk_settings.json or trail.gpx
-if [ ! -f "data/walk_settings.json" ] && [ ! -f "data/trail.gpx" ]; then
-    echo "Error: Neither walk_settings.json nor trail.gpx found in data directory"
+if [ $WALK_COUNT -eq 0 ]; then
+    echo "Error: No valid walks found in data directory"
+    echo "Each walk must be in a subdirectory of /data and contain a walk_settings.json file"
+    echo "Please create at least one valid walk directory before running the container"
+    echo "Example structure:"
+    echo "  data/"
+    echo "    ├── mywalk/"
+    echo "    │   ├── walk_settings.json    # Required"
+    echo "    │   ├── trail.gpx             # Optional"
+    echo "    │   └── images/               # Directory for images"
+    echo "    │       ├── image1.jpg"
+    echo "    │       └── image2.jpg"
     exit 1
 fi
 
 echo "Starting mapapp container on port $PORT..."
 
-# Check if the image exists
+# Check if the image exists or needs to be built
 if ! docker image inspect mapapp >/dev/null 2>&1; then
-    echo "Error: mapapp image not found. Please run ./build.sh first."
-    exit 1
+    echo "Image not found. Building from Dockerfile..."
+    docker build -t mapapp .
 fi
 
 # Check if the specified port is already in use
