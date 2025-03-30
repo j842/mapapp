@@ -10,7 +10,7 @@ RUN apk add --no-cache gettext
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy our web content
-COPY index.html /usr/share/nginx/html/
+COPY www/ /usr/share/nginx/html/
 
 # Copy data files
 COPY data/ /data/

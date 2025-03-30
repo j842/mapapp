@@ -9,9 +9,9 @@ else
   echo "Using provided LINZ_API_KEY: $LINZ_API_KEY"
 fi
 
-# Replace the API key placeholder in index.html
-echo "Updating index.html with the LINZ API key..."
-sed -i "s/LINZ_API_KEY_PLACEHOLDER/$LINZ_API_KEY/g" /usr/share/nginx/html/index.html
+# Replace the API key placeholder in script.js
+echo "Updating script.js with the LINZ API key..."
+sed -i "s/LINZ_API_KEY_PLACEHOLDER/$LINZ_API_KEY/g" /usr/share/nginx/html/script.js
 
 # Ensure logs directory exists
 mkdir -p /var/log/nginx
