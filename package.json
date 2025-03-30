@@ -1,6 +1,6 @@
 {
   "name": "mapapp-thumbnail-service",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "On-demand thumbnail generation service for the Trail Map application",
   "main": "www/thumbnail-service.js",
   "scripts": {

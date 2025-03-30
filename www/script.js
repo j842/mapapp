@@ -1,6 +1,8 @@
 let map;
 let settings;
 let coordinatesPopup;
+let currentImageIndex = -1;
+let imagesArray = [];
 
 // Function to calculate offset coordinates
 function getOffsetCoordinates(coords, trailPath, existingMarkers = []) {
@@ -170,6 +172,8 @@ async function loadSettings() {
         if (jsonResponse.ok) {
             const jsonData = await jsonResponse.json();
             settings.images = jsonData.images || [];
+            // Store images array globally for keyboard navigation
+            imagesArray = settings.images;
             // Only use JSON title if we don't have a GPX title
             if (!settings.trailPath.length) {
                 settings.title = jsonData.title;
@@ -238,7 +242,15 @@ function latLngToTile(lat, lng, zoom) {
 }
 
 // Show image popup
-async function showImagePopup(image) {
+async function showImagePopup(image, fromKeyNavigation = false) {
+    // Find the index of the current image
+    if (!fromKeyNavigation) {
+        currentImageIndex = imagesArray.findIndex(img => 
+            img.imageName === image.imageName && 
+            img.coordinates[0] === image.coordinates[0] && 
+            img.coordinates[1] === image.coordinates[1]);
+    }
+
     const popup = document.getElementById('image-popup');
     const popupContent = document.querySelector('.popup-content');
     const popupImage = document.getElementById('popup-image');
@@ -317,6 +329,13 @@ async function showImagePopup(image) {
         // Set notes
         popupNotes.textContent = image.notes || 'Loading...';
         
+        // Add navigation indicators if we have multiple images
+        const navigationHtml = createNavigationHtml();
+        popupContent.querySelector('.navigation-controls')?.remove();
+        if (navigationHtml) {
+            popupContent.insertAdjacentHTML('beforeend', navigationHtml);
+        }
+        
         // Customize loading message
         loadingIndicator.textContent = 'Loading full image...';
         
@@ -357,6 +376,69 @@ async function showImagePopup(image) {
         popupImage.src = `/thumbnail/${image.imageName}`;
         popupNotes.textContent = image.notes || '';
         popupImage.classList.remove('loading');
+    }
+}
+
+// Helper function to create navigation indicators
+function createNavigationHtml() {
+    if (imagesArray.length <= 1 || currentImageIndex < 0) return '';
+    
+    const totalImages = imagesArray.length;
+    const prevIndex = (currentImageIndex - 1 + totalImages) % totalImages;
+    const nextIndex = (currentImageIndex + 1) % totalImages;
+    
+    return `
+    <div class="navigation-controls">
+        <div class="nav-info">${currentImageIndex + 1} of ${totalImages}</div>
+        <div class="nav-buttons">
+            <button class="nav-prev" onclick="navigateImage(${prevIndex})">« Previous</button>
+            <button class="nav-next" onclick="navigateImage(${nextIndex})">Next »</button>
+        </div>
+        <div class="keyboard-shortcuts">Keyboard: ← previous | → next | ESC close</div>
+    </div>
+    `;
+}
+
+// Function to navigate between images
+function navigateImage(index) {
+    if (index >= 0 && index < imagesArray.length) {
+        currentImageIndex = index;
+        showImagePopup(imagesArray[index], true);
+    }
+}
+
+// Handle keyboard navigation
+function handleKeyNavigation(e) {
+    const popup = document.getElementById('image-popup');
+    
+    // Only process keyboard events when popup is visible
+    if (popup.style.display !== 'block') return;
+    
+    // Make sure we have images to navigate through
+    if (imagesArray.length <= 1 || currentImageIndex < 0) return;
+    
+    const totalImages = imagesArray.length;
+    
+    switch (e.key) {
+        case 'ArrowLeft':
+            // Previous image
+            const prevIndex = (currentImageIndex - 1 + totalImages) % totalImages;
+            navigateImage(prevIndex);
+            e.preventDefault();
+            break;
+            
+        case 'ArrowRight':
+            // Next image
+            const nextIndex = (currentImageIndex + 1) % totalImages;
+            navigateImage(nextIndex);
+            e.preventDefault();
+            break;
+            
+        case 'Escape':
+            // Close popup
+            popup.style.display = 'none';
+            e.preventDefault();
+            break;
     }
 }
 
@@ -645,6 +727,9 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.display = 'none';
         }
     });
+    
+    // Add keyboard event listener
+    document.addEventListener('keydown', handleKeyNavigation);
 
     // Initialize the map
     initialize();
