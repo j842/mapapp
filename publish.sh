@@ -17,6 +17,8 @@ NEW_PATCH=$((PATCH + 1))
 NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
 echo "Incrementing to version: ${NEW_VERSION}"
 
+VERSION=${NEW_VERSION}
+
 # Update version in package.json
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS requires an extension with -i

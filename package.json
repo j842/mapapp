@@ -1,6 +1,6 @@
 {
   "name": "trail-map-viewer",
-  "version": "1.0.59",
+  "version": "1.0.64",
   "description": "Trail Map Viewer with support for multiple walks",
   "main": "server.js",
   "scripts": {
