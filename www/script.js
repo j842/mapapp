@@ -610,8 +610,10 @@ function hideFullscreenPopup() {
 
 // Function to setup the map with trail path and markers
 function setupMap() {
-    // Create the map
-    map = L.map('map');
+    // Create the map with zoom control disabled
+    map = L.map('map', {
+        zoomControl: false
+    });
     
     // Define map layers
     const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
