@@ -1,3 +1,6 @@
+
+#-------------------------------------------
+
 FROM node:18-alpine AS node-deps
 
 # Copy only package.json first to leverage Docker cache for dependencies
@@ -5,13 +8,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-# Build the application in a separate stage
-FROM node:18-alpine AS app-builder
-WORKDIR /app
-COPY --from=node-deps /app/node_modules ./node_modules
-COPY package.json ./
-COPY server.js ./
-COPY www/ ./www/
+#-------------------------------------------
 
 # Final stage
 FROM nginx:alpine
@@ -27,19 +24,15 @@ COPY www/ /usr/share/nginx/html/
 
 # Copy node dependencies, package.json and server.js from the builder stage
 WORKDIR /app
-COPY --from=app-builder /app/node_modules ./node_modules
-COPY --from=app-builder /app/package.json ./
-COPY --from=app-builder /app/server.js ./
-
-# Create symbolic link to make data visible to the Node.js app
-RUN ln -s /data /app/data
+COPY --from=node-deps /app/node_modules ./node_modules
+COPY --from=node-deps /app/package.json ./package.json
+COPY server.js ./
 
 # Create data directory structure (will be mounted in production)
-RUN mkdir -p /data && chown -R nginx:nginx /data
+RUN mkdir -p /data && chown -R nginx:nginx /data && ln -s /data /app/data
 
 # Copy and set up entrypoint script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+COPY --chmod=755 docker-entrypoint.sh /docker-entrypoint.sh
 
 # Expose ports
 EXPOSE 80
