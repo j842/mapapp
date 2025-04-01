@@ -33,6 +33,17 @@ body {
     color: #2c3e50;
     font-size: 18px;
     pointer-events: none;
+    max-width: 40%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+    #page-title {
+        top: 50px; /* Move below the back and start tour buttons on mobile */
+        max-width: 80%;
+    }
 }
 
 #map {
@@ -434,7 +445,7 @@ body.dark-theme .walk-card:hover {
 #back-button {
     position: absolute;
     top: 10px;
-    left: 110px;
+    left: 10px;
     z-index: 1000;
     background-color: rgba(255, 255, 255, 0.8);
     padding: 5px 15px;
@@ -624,7 +635,7 @@ body.dark-theme .walk-card:hover {
 #start-tour-button {
     position: absolute;
     top: 10px;
-    right: 110px;
+    right: 10px;
     z-index: 1000;
     background-color: var(--main-color, #3498db);
     color: white;
@@ -639,6 +650,18 @@ body.dark-theme .walk-card:hover {
     align-items: center;
     gap: 5px;
     transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    #start-tour-button {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    
+    #start-tour-button svg {
+        width: 12px;
+        height: 12px;
+    }
 }
 
 #start-tour-button:hover {
